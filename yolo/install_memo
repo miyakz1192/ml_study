@@ -31,3 +31,64 @@ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/
 sudo dpkg -i cuda-keyring_1.0-1_all.deb
 sudo apt-get update
 sudo apt-get -y install cuda
+
+
+a@ai03:~$ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+--2022-10-18 15:54:22--  https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+Resolving developer.download.nvidia.com (developer.download.nvidia.com)... 152.199.39.144
+Connecting to developer.download.nvidia.com (developer.download.nvidia.com)|152.199.39.144|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 4328 (4.2K) [application/x-deb]
+Saving to: ‘cuda-keyring_1.0-1_all.deb’
+
+cuda-keyring_1.0-1_ 100%[===================>]   4.23K  --.-KB/s    in 0s      
+
+2022-10-18 15:54:22 (311 MB/s) - ‘cuda-keyring_1.0-1_all.deb’ saved [4328/4328]
+
+a@ai03:~$ sudo dpkg -i cuda-keyring_1.0-1_all.deb
+Selecting previously unselected package cuda-keyring.
+(Reading database ... 72918 files and directories currently installed.)
+Preparing to unpack cuda-keyring_1.0-1_all.deb ...
+Unpacking cuda-keyring (1.0-1) ...
+Setting up cuda-keyring (1.0-1) ...
+a@ai03:~$ 
+a@ai03:~$ ls
+cuda-keyring_1.0-1_all.deb  ml_study  token
+a@ai03:~$ du -m cuda-keyring_1.0-1_all.deb 
+1	cuda-keyring_1.0-1_all.deb
+a@ai03:~$ sudo apt-get update
+Get:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64  InRelease [1,581 B]
+Get:2 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64  Packages [705 kB]
+Hit:3 http://jp.archive.ubuntu.com/ubuntu focal InRelease          
+Hit:4 http://jp.archive.ubuntu.com/ubuntu focal-updates InRelease
+Hit:5 http://jp.archive.ubuntu.com/ubuntu focal-backports InRelease
+Hit:6 http://jp.archive.ubuntu.com/ubuntu focal-security InRelease
+Fetched 707 kB in 1s (925 kB/s)
+Reading package lists... Done
+a@ai03:~$ sudo apt-get -y install cuda
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ cuda : Depends: cuda-11-8 (>= 11.8.0) but it is not going to be installed
+E: Unable to correct problems, you have held broken packages.
+a@ai03:~$ 
+
+
+前途多難なり。。。
+
+
+https://zenn.dev/190ikp/articles/vagrant_libvirt_gpu
+これをやる必要があるのか。。。？かなり難しそうなり。
+lily2に影響があるのは勘弁してほしい。
+
+
+a@ai03:~/yolov7$ python3 test.py --data data/coco.yaml --img 640 --batch 32 --conf 0.001 --iou 0.65 --device 0 --weights yolov7.pt --name yolov7_640_val --device cpu
+
+とりあえず、cpuでいけそうだ。
