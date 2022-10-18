@@ -15,3 +15,9 @@ miyakz@lily2:~$
 
 a@ai03:~$ sudo apt install -y --no-install-recommends nvidia-driver-460
 
+この後、新しいカーネルが出来た様子なので、ai03をリブート
+
+00:01.0 VGA compatible controller: Red Hat, Inc. QXL paravirtual graphic card (r
+ev 04)
+けども、ＶＭからはこんなグラフィックカードが見えるけど良いのかな？
+とりあえず、ＣＵＤＡ入れてみる。
