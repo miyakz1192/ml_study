@@ -1,3 +1,5 @@
+https://qiita.com/SwitchBlade/items/5d5bc645822229ee0ed9
+
 miyakz@lily2:~$ ubuntu-drivers devices
 WARNING:root:_pkg_get_support nvidia-driver-390: package has invalid Support Legacyheader, cannot determine support level
 == /sys/devices/pci0000:00/0000:00:03.1/0000:07:00.0 ==
@@ -21,3 +23,11 @@ a@ai03:~$ sudo apt install -y --no-install-recommends nvidia-driver-460
 ev 04)
 けども、ＶＭからはこんなグラフィックカードが見えるけど良いのかな？
 とりあえず、ＣＵＤＡ入れてみる。
+
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=deb_network
+
+案内どおりに入れて
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+sudo dpkg -i cuda-keyring_1.0-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda
