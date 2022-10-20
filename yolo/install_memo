@@ -109,3 +109,24 @@ a@ai03:~/yolov7$
 
 けど、killedで殺されてしまった。どうにも上手く動作しないね！yolo7は。。。
 
+detectってやつは上手く動いた。
+a@ai03:~/yolov7$ python3 detect.py --source inference/images/horses.jpg --weights yolov7-e6e.pt --conf 0.25 --img-size 1280 --device cpu
+Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='cpu', exist_ok=False, img_size=1280, iou_thres=0.45, name='exp', no_trace=False, nosave=False, project='runs/detect', save_conf=False, save_txt=False, source='inference/images/horses.jpg', update=False, view_img=False, weights=['yolov7-e6e.pt'])
+YOLOR 🚀 v0.1-115-g072f76c torch 1.12.1+cu102 CPU
+
+Downloading https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-e6e.pt to yolov7-e6e.pt...
+100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████| 290M/290M [00:45<00:00, 6.72MB/s]
+
+Fusing layers... 
+Model Summary: 792 layers, 151687420 parameters, 817020 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/home/a/.local/lib/python3.8/site-packages/torch/functional.py:478: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at  ../aten/src/ATen/native/TensorShape.cpp:2895.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+5 horses, Done. (6892.7ms) Inference, (4.6ms) NMS
+ The image with the result is saved in: runs/detect/exp2/horses.jpg
+Done. (9.141s)
+a@ai03:~/yolov7$ 
+
