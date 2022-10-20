@@ -33,6 +33,7 @@ sudo apt-get update
 sudo apt-get -y install cuda
 
 
+
 a@ai03:~$ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
 --2022-10-18 15:54:22--  https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
 Resolving developer.download.nvidia.com (developer.download.nvidia.com)... 152.199.39.144
@@ -92,3 +93,19 @@ lily2に影響があるのは勘弁してほしい。
 a@ai03:~/yolov7$ python3 test.py --data data/coco.yaml --img 640 --batch 32 --conf 0.001 --iou 0.65 --device 0 --weights yolov7.pt --name yolov7_640_val --device cpu
 
 とりあえず、cpuでいけそうだ。
+
+val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|███████████| 5000/5000 [00:02<00:00, 1986.01it/s]
+val: New cache created: coco/val2017.cache
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95:   0%|                           | 0/157 [00:00<?, ?it/s]/home/a/.local/lib/python3.8/site-packages/torch/functional.py:478: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at  ../aten/src/ATen/native/TensorShape.cpp:2895.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95:   6%|█                  | 9/157 [02:49<46:41, 18.93s/it]
+
+
+
+
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95:  66%|███████████▏     | 103/157 [34:40<21:18, 23.67s/it]Killed
+a@ai03:~/yolov7$ 
+
+
+けど、killedで殺されてしまった。どうにも上手く動作しないね！yolo7は。。。
+
