@@ -1,3 +1,7 @@
 https://dev.classmethod.jp/articles/yolov7-train-with-customize-dataset/
 
 この記事ベースで、自分好みにカスタマイズできそう。
+
+このツールでトレーニングデータのアノテーションをできるということだ。
+
+https://dev.classmethod.jp/articles/annotate_objects_in_image_with_cvat/
