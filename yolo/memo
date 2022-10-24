@@ -33,3 +33,7 @@ This password is too common.
 Bypass password validation and create user anyway? [y/N]: y
 Superuser created successfully.
 a@ai03:~/cvat$ 
+
+
+
+https://github.com/ultralytics/yolov5/issues/8012
