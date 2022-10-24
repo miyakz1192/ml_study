@@ -5,3 +5,10 @@ https://dev.classmethod.jp/articles/yolov7-train-with-customize-dataset/
 このツールでトレーニングデータのアノテーションをできるということだ。
 
 https://dev.classmethod.jp/articles/annotate_objects_in_image_with_cvat/
+
+
+CVATの利用
+
+git clone https://github.com/opencv/cvat
+cd cvat
+sudo docker-compose up -d
