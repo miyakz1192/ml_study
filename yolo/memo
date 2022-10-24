@@ -9,7 +9,11 @@ https://dev.classmethod.jp/articles/annotate_objects_in_image_with_cvat/
 
 CVATの利用
 
+
+
 git clone https://github.com/opencv/cvat
+sudo docker build ./ -t cvat
+
 cd cvat
 sudo docker-compose up -d
 sudo docker exec -it cvat_server bash -ic 'python3 ~/manage.py createsuperuser'
