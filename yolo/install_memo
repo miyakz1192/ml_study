@@ -133,3 +133,22 @@ Model Summary: 792 layers, 151687420 parameters, 817020 gradients
 Done. (9.141s)
 a@ai03:~/yolov7$ 
 
+nvidia driver install 
+https://qiita.com/porizou1/items/74d8264d6381ee2941bd
+
+miyakz@lily2:~$ sudo ubuntu-drivers devices
+WARNING:root:_pkg_get_support nvidia-driver-390: package has invalid Support Legacyheader, cannot determine support level
+== /sys/devices/pci0000:00/0000:00:03.1/0000:07:00.0 ==
+modalias : pci:v000010DEd0000128Bsv000019DAsd00001422bc03sc00i00
+vendor   : NVIDIA Corporation
+model    : GK208B [GeForce GT 710]
+driver   : nvidia-driver-418-server - distro non-free
+driver   : nvidia-driver-470-server - distro non-free
+driver   : nvidia-driver-390 - distro non-free
+driver   : nvidia-driver-470 - distro non-free recommended
+driver   : nvidia-driver-450-server - distro non-free
+driver   : xserver-xorg-video-nouveau - distro free builtin
+
+miyakz@lily2:~$ sudo apt-get install nvidia-driver-470-server
+
+
