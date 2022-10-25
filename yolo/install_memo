@@ -174,4 +174,84 @@ Tue Oct 25 13:53:14 2022
 +-----------------------------------------------------------------------------+
 miyakz@lily2:~$ 
 
+$ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+$ sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+$ sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
+$ sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+$ sudo apt-get update
+$ sudo apt-get -y install cuda
+
+
+https://qiita.com/hnw/items/daaf11412295366436b8
+miyakz@lily2:~/gpu_cuda$ sudo apt-key list
+/etc/apt/trusted.gpg
+--------------------
+pub   rsa2048 2018-04-01 [SCE] [expired: 2021-03-31]
+      54A6 47F9 048D 5688 D7DA  2ABE 6A03 0B21 BA07 F4FB
+uid           [ expired] Google Cloud Packages Automatic Signing Key <gc-team@google.com>
+
+pub   rsa4096 2016-04-12 [SC]
+      EB4C 1BFD 4F04 2F6D DDCC  EC91 7721 F63B D38B 4796
+uid           [ unknown] Google Inc. (Linux Packages Signing Authority) <linux-packages-keymaster@google.com>
+
+pub   rsa4096 2016-06-24 [SC]
+      AE09 FE4B BD22 3A84 B2CC  FCE3 F60F 4B3D 7FA2 AF80
+uid           [ unknown] cudatools <cudatools@nvidia.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-archive.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      790B C727 7767 219C 42C8  6F93 3B4F E6AC C0B2 1F32
+uid           [ unknown] Ubuntu Archive Automatic Signing Key (2012) <ftpmaster@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      8439 38DF 228D 22F7 B374  2BC0 D94A A3F0 EFE2 1092
+uid           [ unknown] Ubuntu CD Image Automatic Signing Key (2012) <cdimage@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg
+------------------------------------------------------
+pub   rsa4096 2018-09-17 [SC]
+      F6EC B376 2474 EDA9 D21B  7022 8719 20D1 991B C93C
+uid           [ unknown] Ubuntu Archive Automatic Signing Key (2018) <ftpmaster@ubuntu.com>
+
+miyakz@lily2:~/gpu_cuda$ sudo apt-key del 7FA2AF80
+OK
+miyakz@lily2:~/gpu_cuda$ sudo apt-key list
+/etc/apt/trusted.gpg
+--------------------
+pub   rsa2048 2018-04-01 [SCE] [expired: 2021-03-31]
+      54A6 47F9 048D 5688 D7DA  2ABE 6A03 0B21 BA07 F4FB
+uid           [ expired] Google Cloud Packages Automatic Signing Key <gc-team@google.com>
+
+pub   rsa4096 2016-04-12 [SC]
+      EB4C 1BFD 4F04 2F6D DDCC  EC91 7721 F63B D38B 4796
+uid           [ unknown] Google Inc. (Linux Packages Signing Authority) <linux-packages-keymaster@google.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-archive.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      790B C727 7767 219C 42C8  6F93 3B4F E6AC C0B2 1F32
+uid           [ unknown] Ubuntu Archive Automatic Signing Key (2012) <ftpmaster@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      8439 38DF 228D 22F7 B374  2BC0 D94A A3F0 EFE2 1092
+uid           [ unknown] Ubuntu CD Image Automatic Signing Key (2012) <cdimage@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg
+------------------------------------------------------
+pub   rsa4096 2018-09-17 [SC]
+      F6EC B376 2474 EDA9 D21B  7022 8719 20D1 991B C93C
+uid           [ unknown] Ubuntu Archive Automatic Signing Key (2018) <ftpmaster@ubuntu.com>
+
+miyakz@lily2:~/gpu_cuda$ 
+
+
+https://hibiki-press.tech/dev-env/ubuntu/add-ppa/4640
+miyakz@lily2:~/gpu_cuda$ sudo add-apt-repository --remove "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+miyakz@lily2:~/gpu_cuda$ 
+
 
