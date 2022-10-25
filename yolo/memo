@@ -109,3 +109,11 @@ a@ai03:~/yolov7$
 なんで、epochが途中まで上手く言っている、途中で失敗するのか、、、
 
 https://github.com/ultralytics/yolov5/issues/8012
+
+30 epochs completed in 0.128 hours.
+
+Optimizer stripped from runs/train/yolov7-e6-first/weights/last.pt, 221.4MB
+Optimizer stripped from runs/train/yolov7-e6-first/weights/best.pt, 221.4MB
+a@ai03:~/yolov7$ 
+
+３０エポックだと上手く行く様子。
