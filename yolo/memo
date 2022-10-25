@@ -117,3 +117,7 @@ Optimizer stripped from runs/train/yolov7-e6-first/weights/best.pt, 221.4MB
 a@ai03:~/yolov7$ 
 
 ３０エポックだと上手く行く様子。
+
+ただ、検証データでdetect試したがうまくいかん。馬の絵もダメ。なんか、全くだめなモデルになってしまった？
+30エポックだとやっぱり足らんのか。。。しかし、上のエラーが出てしまう。。。
+
