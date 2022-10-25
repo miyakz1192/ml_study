@@ -334,3 +334,34 @@ miyakz@lily2:~/gpu_cuda$
 
 エラーは減った気がする。
 試しに再起動。
+
+miyakz@lily2:~$ cd /etc/apt/sources.list.d
+miyakz@lily2:/etc/apt/sources.list.d$ ls
+google-chrome.list  google-chrome.list.save  kubernetes.list  kubernetes.list.save
+miyakz@lily2:/etc/apt/sources.list.d$ less kubernetes.list
+miyakz@lily2:/etc/apt/sources.list.d$ cat kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+miyakz@lily2:/etc/apt/sources.list.d$ cat kubernetes.list.save 
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+miyakz@lily2:/etc/apt/sources.list.d$ sudo rm kubernetes.list kubernetes.list.save 
+miyakz@lily2:/etc/apt/sources.list.d$ 
+
+miyakz@lily2:/etc/apt/sources.list.d$ sudo apt update 
+Hit:1 http://jp.archive.ubuntu.com/ubuntu focal InRelease
+Hit:2 http://jp.archive.ubuntu.com/ubuntu focal-updates InRelease
+Hit:3 http://jp.archive.ubuntu.com/ubuntu focal-backports InRelease
+Hit:4 http://jp.archive.ubuntu.com/ubuntu focal-security InRelease
+Hit:5 http://dl.google.com/linux/chrome/deb stable InRelease
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+1 package can be upgraded. Run 'apt list --upgradable' to see it.
+miyakz@lily2:/etc/apt/sources.list.d$ apt list --upgradable
+Listing... Done
+google-chrome-stable/stable 106.0.5249.119-1 amd64 [upgradable from: 101.0.4951.64-1]
+N: There is 1 additional version. Please use the '-a' switch to see it
+miyakz@lily2:/etc/apt/sources.list.d$ 
+
+OKやっと治った。
+えと、なにやっていたんだっけ。。。
+
