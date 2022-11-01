@@ -365,3 +365,846 @@ miyakz@lily2:/etc/apt/sources.list.d$
 OKやっと治った。
 えと、なにやっていたんだっけ。。。
 
+そうだ、GPUドライバをインストールしたあと、CUDAをインストールしようとしたのだけど、
+その時にレポジトリが壊れたので修理。結局以下でインストールできる？
+
+https://linuxconfig.org/how-to-install-cuda-on-ubuntu-20-04-focal-fossa-linux
+$ sudo apt install nvidia-cuda-toolkit
+
+miyakz@lily2:/etc/apt/sources.list.d$ nvcc --version
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2019 NVIDIA Corporation
+Built on Sun_Jul_28_19:07:16_PDT_2019
+Cuda compilation tools, release 10.1, V10.1.243
+miyakz@lily2:/etc/apt/sources.list.d$ 
+
+あとは、なんだろう？
+いままで、lily2にやってきたけど、実は、この操作だけが意味があった？
+
+virt-managerからai03をクリックして、add new hardwareでhost deviceでNVIDIAの GeForce GT710を選択する。
+https://tech.virtualtech.jp/entry/2017/12/25/150343
+
+ただし、そうすると、なぜか、libvertdがハング？したような感じで、virt-managerがずっとConnectingのままになった。
+やむなく、lily2を再起動。先ほどは、ai03が起動したままだったので、ai03を停止した状態でリトライしてみる。
+
+
+あっさり成功。
+
+しかし、ai03の起動が出来ない事態に。。。
+
+miyakz@lily2:~$ virsh start ai03
+
+
+ここでハング。やむなく、再度lily2を再起動する。
+
+miyakz@lily2:~$ virsh list
+
+
+
+ここでvirsh listが帰ってこない！参った。
+今度はKVM(libvertd)が壊れてしまった。。。
+
+https://blog.kgwr.net/ryzen7-server-setup-05/
+
+上のＵＲＬのような方法で実施する必要があったのか？
+
+miyakz@lily2:~/vms$ sudo cat /var/log/libvirt/qemu/ai03.log
+(snip)
+-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+-msg timestamp=on
+libvirt:  error : libvirtd quit during handshake: Input/output error
+2022-10-25 14:59:13.198+0000: shutting down, reason=failed
+miyakz@lily2:~/vms$ 
+
+libvertdはプロセスは存在しているけど、strace仕掛けてみると、特に処理は行われていない様子な感じ。
+
+ai03の以下の部分を消去して、システムを再起動してみる。。。
+
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x07' slot='0x00' function='0x0'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x07' slot='0x00' function='0x0'/>
+    </hostdev>
+
+virsh listがちゃんと帰ってきた。
+ってことは、多分、上記の設定がやばい。
+
+ってことで、試しに以下のサイトを参照にしながらやってみることにした。
+https://m0rter.anyfrog.net/2020/219/
+
+
+1) まず、lily2にはVFIOがインストールされている様子。
+
+miyakz@lily2:~$  dmesg | grep -i vfio
+[    2.561024] VFIO - User Level meta-driver version: 0.3
+miyakz@lily2:~$ 
+
+2)　次にデバイスの確認
+miyakz@lily2:~$ lspci -nn | grep -i nvidia
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~$ 
+
+3) vfioの設定。
+ vi /etc/modprobe.d/vfio.conf
+
+どうも、グラフィックカードとaudioを設定するらしい。
+miyakz@lily2:~$ cat /etc/modprobe.d/vfio.conf
+options vfio-pci ids=10de:128b,10de:0e0f
+miyakz@lily2:~$ 
+
+4)　ここで一回lily2を再起動。。。
+
+[    3.162313] VFIO - User Level meta-driver version: 0.3
+
+miyakz@lily2:~$ lsmod |grep vfio
+miyakz@lily2:~$ 
+
+ん？読み込まれていません？
+
+5) モジュールを指定
+以下のＵＲＬを参照
+
+https://blog.kgwr.net/ryzen7-server-setup-05/
+
+miyakz@lily2:~$ cat /etc/modules
+# /etc/modules: kernel modules to load at boot time.
+#
+# This file contains the names of kernel modules that should be loaded
+# at boot time, one per line. Lines beginning with "#" are ignored.
+vfio
+vfio_iommu_type1
+vfio_pci
+vfio_virqfd
+kvm
+kvm_amd
+
+miyakz@lily2:~$ 
+
+6) lily2を再起動
+
+miyakz@lily2:~$ lsmod |grep vfio
+miyakz@lily2:~$ 
+
+しかし、読み込まれず。。。
+
+miyakz@lily2:~$ lspci -nnk -d 10de:128b
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208B [GeForce GT 710] [19da:1422]
+  Kernel driver in use: nvidia
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+miyakz@lily2:~$ lspci -nnk -d 10de:0e0f
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208 HDMI/DP Audio Controller [19da:1422]
+  Kernel driver in use: snd_hda_intel
+  Kernel modules: snd_hda_intel
+miyakz@lily2:~$ 
+
+ドライバも変更されていない様子なので、どうもちゃんとシステムにvfioが入っていない？？
+
+起動時にパラメータを渡す方法。
+https://mathiashueber.com/pci-passthrough-ubuntu-2004-virtual-machine/
+
+/etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="amd_iommu=on iommu=pt kvm.ignore_msrs=1 vfio-pci.ids=10de:1b83,10de:10f0"
+この後、updategrub
+
+
+https://bananaapple.tw/blog/kvm-gpu-passthrough-ubuntu-20-04/
+このページもわかり明日。
+
+
+https://askubuntu.com/questions/1247058/how-do-i-confirm-that-vfio-is-working-in-20-04
+上は、ubuntu 20.04にはすでにvfioが組み込まれているんだよって話らしい。
+ちょうど私と同じ勘違いをした人らしいね。
+
+以下のようにして、上手く言った。（半分）
+このページの記事が今の所有力らしい！
+https://bananaapple.tw/blog/kvm-gpu-passthrough-ubuntu-20-04/
+
+miyakz@lily2:~$ cat  /etc/default/grub
+# If you change this file, run 'update-grub' afterwards to update
+# /boot/grub/grub.cfg.
+# For full documentation of the options in this file, see:
+#   info -f grub -n 'Simple configuration'
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT_STYLE=hidden
+GRUB_TIMEOUT=0
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+#GRUB_CMDLINE_LINUX_DEFAULT=""
+GRUB_CMDLINE_LINUX_DEFAULT="vfio-pci.ids=10de:128b,10de:0e0f"
+GRUB_CMDLINE_LINUX=""
+
+# Uncomment to enable BadRAM filtering, modify to suit your needs
+# This works with Linux (no patch required) and with any kernel that obtains
+# the memory map information from GRUB (GNU Mach, kernel of FreeBSD ...)
+#GRUB_BADRAM="0x01234567,0xfefefefe,0x89abcdef,0xefefefef"
+
+# Uncomment to disable graphical terminal (grub-pc only)
+#GRUB_TERMINAL=console
+
+# The resolution used on graphical terminal
+# note that you can use only modes which your graphic card supports via VBE
+# you can see them in real GRUB with the command `vbeinfo'
+#GRUB_GFXMODE=640x480
+
+# Uncomment if you don't want GRUB to pass "root=UUID=xxx" parameter to Linux
+#GRUB_DISABLE_LINUX_UUID=true
+
+# Uncomment to disable generation of recovery mode menu entries
+#GRUB_DISABLE_RECOVERY="true"
+
+# Uncomment to get a beep at grub start
+#GRUB_INIT_TUNE="480 440 1"
+miyakz@lily2:~$ 
+
+
+sudo update-grub
+
+
+
+
+miyakz@lily2:~$ lspci -nnk -d 10de:128b
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208B [GeForce GT 710] [19da:1422]
+  Kernel driver in use: vfio-pci
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+miyakz@lily2:~$ lspci -nnk -d 10de:0e0f 
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208 HDMI/DP Audio Controller [19da:1422]
+  Kernel driver in use: vfio-pci
+  Kernel modules: snd_hda_intel
+miyakz@lily2:~$ 
+
+ただし、dmesgに以下の不穏なエラーが。。。以下が繰り返し出力されている。
+
+[  774.127607] nvidia-nvlink: Unregistered the Nvlink Core, major device number 235
+[  774.212569] nvidia-nvlink: Nvlink Core is being initialized, major device number 235
+[  774.213111] NVRM: The NVIDIA probe routine was not called for 1 device(s).
+[  774.213112] NVRM: This can occur when a driver such as: 
+               NVRM: nouveau, rivafb, nvidiafb or rivatv 
+               NVRM: was loaded and obtained ownership of the NVIDIA device(s).
+[  774.213112] NVRM: Try unloading the conflicting kernel module (and/or
+               NVRM: reconfigure your kernel without the conflicting
+               NVRM: driver(s)), then try loading the NVIDIA kernel module
+               NVRM: again.
+[  774.213112] NVRM: No NVIDIA devices probed.
+[  774.213286] nvidia-nvlink: Unregistered the Nvlink Core, major device number 235
+
+miyakz@lily2:~$ sudo nvidia-smi
+NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running.
+
+miyakz@lily2:~$ 
+
+ということで奪われているから？
+vmhost側からnvidiaのcudaモジュールとか、アンインストールすればいいのかな、
+よくわからない。
+
+多分、強豪しているといううことだろう、。vmhostからnvdiaのドライバを抜いてみよう。
+ほすとと競合しているのおだろう
+
+ 1029  sudo apt remove nvidia-driver-470-server
+ 1030  sudo apt remove  nvidia-cuda-toolkit
+
+再起動
+
+https://www.belbel.or.jp/opensuse-manuals_ja/app-gpu-passthru.html
+A.3.3 Nouveau ドライバのブラックリスト設定 #EDIT SOURCE
+NVIDIA カードを VM ゲストに割り当てるには、ホスト側の OS で NVIDIA GPU 向けの内蔵ドライバである nouveau を読み込まないように設定する必要があります。具体的には /etc/modprobe.d/60-blacklist-nouveau.conf ファイルを作成して下記のような内容を記述します:
+
+blacklist nouveau
+
+↑　これやっていなかったな。。。
+やって明日の朝あたりに確認する。
+
+https://bayas.dev/blog/turn-off-nvidia-udev/
+↑　これをやっていなかったな
+
+★　行けそうなオペレーションまとめ
+1) NVIDIAのドライバが入っている状態で、vfioを設定する。
+
+miyakz@lily2:~$ sudo ubuntu-drivers devices
+WARNING:root:_pkg_get_support nvidia-driver-390: package has invalid Support Legacyheader, cannot determine support level
+== /sys/devices/pci0000:00/0000:00:03.1/0000:07:00.0 ==
+modalias : pci:v000010DEd0000128Bsv000019DAsd00001422bc03sc00i00
+vendor   : NVIDIA Corporation
+model    : GK208B [GeForce GT 710]
+driver   : nvidia-driver-418-server - distro non-free
+driver   : nvidia-driver-470-server - distro non-free
+driver   : nvidia-driver-390 - distro non-free
+driver   : nvidia-driver-470 - distro non-free recommended
+driver   : nvidia-driver-450-server - distro non-free
+driver   : xserver-xorg-video-nouveau - distro free builtin
+
+miyakz@lily2:~$ sudo apt-get install nvidia-driver-470-server
+miyakz@lily2:~$ nvidia-smi
+
+
+1) lily2でNVIDIAのドライバをアンインストールして、しつこく残っている、nvidia関連のドライバをblacklistに入れる。
+   https://bayas.dev/blog/turn-off-nvidia-udev/
+
+ ※　ここで、lily2からはNVIDIAのデバイスは見れなくなる。
+
+ miyakz@lily2:~$ ubuntu-drivers devices
+miyakz@lily2:~$ lspci -nnk | grep NV
+miyakz@lily2:~$ 
+
+
+2) VMにパススルーを設定する。 
+
+miyakz@lily2:~/nvidia_gpu_exp$ virsh attach-device --domain ai03 --file a.xml 
+error: Failed to attach device from a.xml
+error: Device 0000:07:00.0 not found: could not access /sys/bus/pci/devices/0000:07:00.0/config: No such file or directory
+
+miyakz@lily2:~/nvidia_gpu_exp$ ls /sys/bus/pci/devices/
+0000:00:00.0  0000:00:03.1  0000:00:08.1  0000:00:18.1  0000:00:18.7  0000:03:00.0  0000:08:00.0  0000:0b:00.0
+0000:00:00.2  0000:00:04.0  0000:00:08.2  0000:00:18.2  0000:01:00.0  0000:04:00.0  0000:09:00.0
+0000:00:01.0  0000:00:05.0  0000:00:08.3  0000:00:18.3  0000:02:04.0  0000:04:00.1  0000:09:00.1
+0000:00:01.2  0000:00:07.0  0000:00:14.0  0000:00:18.4  0000:02:08.0  0000:04:00.3  0000:09:00.3
+0000:00:02.0  0000:00:07.1  0000:00:14.3  0000:00:18.5  0000:02:09.0  0000:05:00.0  0000:09:00.4
+0000:00:03.0  0000:00:08.0  0000:00:18.0  0000:00:18.6  0000:02:0a.0  0000:06:00.0  0000:0a:00.0
+miyakz@lily2:~/nvidia_gpu_exp$ 
+
+ここで、問題。cliでやろうにもvirt-managerでやろうにも、nvidiaの
+デバイスが見れないようで、attachできない。
+
+っていうことで上手く行きそうだったけどダメそう。
+
+ここで、１つ思ったのは、ちょっといろいろパターンを試してみるほかないかな？少なくとも、初期状態に戻ってみる。
+
+1) NVIDIAフルあり、かつ、VFIOあり
+/etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="amd_iommu=on iommu=pt kvm.ignore_msrs=1 vfio-pci.ids=10de:1b83,10de:10f0"
+
+NVIDIAフルあり＝
+50-disable-nvidia.rulesなし、かつ、blacklist.confは以下の内容。
+#added by miyakz 
+#blacklist i2c_nvidia_gpu
+#blacklist nouveau
+#blacklist nvidia
+#blacklist nvidia-drm
+#blacklist nvidia-modeset
+
+これだと、NVIDIAデバイスは見えるけど、例のエラー
+Oct 27 14:36:34 lily2 kernel: [ 1518.933919] NVRM: The NVIDIA probe routine was not called for 1 device(s).
+Oct 27 14:36:34 lily2 kernel: [ 1518.933919] NVRM: This can occur when a driver such as: 
+Oct 27 14:36:34 lily2 kernel: [ 1518.933919] NVRM: nouveau, rivafb, nvidiafb or rivatv 
+Oct 27 14:36:34 lily2 kernel: [ 1518.933919] NVRM: was loaded and obtained ownership of the NVIDIA device(s).
+Oct 27 14:36:34 lily2 kernel: [ 1518.933920] NVRM: Try unloading the conflicting kernel module (and/or
+Oct 27 14:36:34 lily2 kernel: [ 1518.933920] NVRM: reconfigure your kernel without the conflicting
+Oct 27 14:36:34 lily2 kernel: [ 1518.933920] NVRM: driver(s)), then try loading the NVIDIA kernel module
+Oct 27 14:36:34 lily2 kernel: [ 1518.933920] NVRM: again.
+Oct 27 14:36:34 lily2 kernel: [ 1518.933920] NVRM: No NVIDIA devices probed.
+
+必須の状態として、NVIDIAデバイスが見れることだと思われる。
+やりたいことは、NVIDIAデバイスが、みれてかつ、このウザイメッセージが出ないこと。
+
+The NVIDIA probe routine was not called for 1 device(s).
+This can occur when a driver such as: nouveau, rivafb, nvidiafb or rivatv 
+was loaded and obtained wnership of the NVIDIA　device(s).
+Try unloading the conflicting kernel module (and/or
+reconfigure your kernel without the conflicting
+driver(s)), then try loading the NVIDIA kernel module again.
+
+1 つのデバイスに対して NVIDIA プローブ ルーチンが呼び出されませんでした。
+これは、nouveau、rivafb、nvidiafb、rivatv などのドライバーで発生する可能性があります。
+ロードされ、NVIDIA デバイスの所有権を取得しました。
+競合するカーネルモジュールをアンロードしてみてください（および/または
+競合することなくカーネルを再構成します
+ドライバー)、NVIDIA カーネル モジュールのロードを再試行してください。
+
+ってか、このプローブルーティンを発行しているやつを止めれば、このウザイメッセージが抑止できるので、
+目標を達成できるのではないか。
+
+vfioとNVIDIAが競合しているのは間違いない。あとは、このプローブをやっているのを特定するだけだ。
+あと、nouveau.koが読み込まれているためだという記事もある。こちらをやってみる。
+https://github.com/probonopd/system/issues/1
+
+GRUB_CMDLINE_LINUX_DEFAULT= set this: rdblaclist=nouveau.
+
+ここも参考になるかも？
+https://linuxconfig.org/how-to-disable-blacklist-nouveau-nvidia-driver-on-ubuntu-22-04-jammy-jellyfish-linux
+https://blog.epheo.eu/author/admin/
+https://www.reddit.com/r/VFIO/comments/q7ddcg/cant_unload_nvidia_drivers/
+
+2) NVIDIAフル有り、かつ、VFIOなし、かつ、nouveau.koをgrubで無効化
+
+→　正常に起動して、エラーメッセージもなし。
+
+
+3) NVIDIAフル有り、かつ、VFIOあり、かつ、nouveau.koをgrubで無効化
+
+→　エラーメッセージなし。正常に起動
+   miyakz@lily2:~$ lspci -nnk | grep -i nvi
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Kernel driver in use: nvidia
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~$ 
+
+んー。VFIOは有効にならず。。。。
+★　勘違い？
+
+[    2.560332] VFIO - User Level meta-driver version: 0.3
+[    2.562865] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+
+どうも設定が有効になっていない臭い。
+GRUB_CMDLINE_LINUX_DEFAULT="rdblaclist=nouveau vfio-pci.ids=10de:128b,10de:0e0f"
+
+設定を有効後、起動したら、例のエラーメッセージが出ている。。。
+
+miyakz@lily2:~$ lspci -nnk | grep -i nvi
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~$ 
+
+Oct 27 15:20:46 lily2 kernel: [    2.560332] VFIO - User Level meta-driver version: 0.3
+
+しかも、設定が有効になっておらん。
+パラメータの与える順番が関係する？
+
+GRUB_CMDLINE_LINUX_DEFAULT="vfio-pci.ids=10de:128b,10de:0e0f rdblaclist=nouveau"
+
+miyakz@lily2:~$ lspci -nnk | grep -i nvi
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~$ 
+だめ。有効になっておらず、例のメッセージも出るという最悪パターン。w
+
+https://www.reddit.com/r/VFIO/comments/q7ddcg/cant_unload_nvidia_drivers/
+ only do this for servers so ymmv but I put this in /etc/default/grub then update-grub:
+
+GRUB_CMDLINE_LINUX_DEFAULT="intel_iommu=on vfio-pci.ids=10de:1eb8 rdblaclist=nouveau"
+Where 10de:1eb8 is the ID of the card from lspci -nnk.
+
+Then reboot, and the vfio-pci driver will be used instead of the nvidia one. You also need to mask the nvidia services, particularly some DRM one.
+と記載があるのだが。。。
+
+このページはidを１つ指定しているようなので、カードのみを１つ指定してみるか。。。
+
+NG例のメッセ０時でる。しかもvfio有効にならず。
+
+ps見てみると以下のプロセスあり。
+
+/sbin/modprobe nvidia-drm
+
+  |-systemd-udevd,577
+  |   |-systemd-udevd,580
+(snip)
+  |   |-systemd-udevd,623
+  |   |   `-modprobe,26784 nvidia-modeset
+
+udevdがいろいろとロードしようとしているので、こいつを止めればよいのではないか？
+
+miyakz@lily2:/lib/udev/rules.d$ grep -rn nvidia *
+61-gdm.rules:3:# disable Wayland when using the proprietary nvidia driver
+61-gdm.rules:4:DRIVER=="nvidia", RUN+="/usr/lib/gdm3/gdm-disable-wayland"
+71-nvidia.rules:3:SUBSYSTEM=="pci", ATTRS{vendor}=="0x10de", DRIVERS=="nvidia", TAG+="seat", TAG+="master-of-seat"
+71-nvidia.rules:5:# Start and stop nvidia-persistenced on power on and power off
+71-nvidia.rules:7:ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", TAG+="systemd", ENV{SYSTEMD_WANTS}="nvidia-persistenced.service"
+71-nvidia.rules:9:# Load and unload nvidia-modeset module
+71-nvidia.rules:10:ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-modeset"
+71-nvidia.rules:11:ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-modeset"
+71-nvidia.rules:13:# Load and unload nvidia-drm module
+71-nvidia.rules:14:ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-drm"
+71-nvidia.rules:15:ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-drm"
+71-nvidia.rules:17:# Load and unload nvidia-uvm module
+71-nvidia.rules:18:ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-uvm"
+71-nvidia.rules:19:ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-uvm"
+71-nvidia.rules:21:# This will create the device nvidia device nodes
+71-nvidia.rules:22:ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/ub-device-create"
+71-nvidia.rules:24:# Create the device node for the nvidia-uvm module
+71-nvidia.rules:25:ACTION=="add", DEVPATH=="/module/nvidia_uvm", SUBSYSTEM=="module", RUN+="/sbin/ub-device-create"
+71-u-d-c-gpu-detection.rules:7:ACTION=="add", SUBSYSTEMS=="pci", DRIVERS=="nvidia", RUN+="/bin/touch /run/u-d-c-nvidia-was-loaded"
+71-u-d-c-gpu-detection.rules:8:ACTION=="add", SUBSYSTEM=="module", KERNEL=="nvidia_drm", RUN+="/bin/touch /run/u-d-c-nvidia-drm-was-loaded"
+miyakz@lily2:/lib/udev/rules.d$ 
+
+がっつり、いっぱいあるわ。。。
+
+4) NVIDIAフルあり、かつ、VFIOあり＋udevを止めてみる系
+
+miyakz@lily2:~$ lspci -nnk -d 10de:128b
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208B [GeForce GT 710] [19da:1422]
+  Kernel driver in use: vfio-pci
+  Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
+miyakz@lily2:~$ lspci -nnk -d 10de:0e0f
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+  Subsystem: ZOTAC International (MCO) Ltd. GK208 HDMI/DP Audio Controller [19da:1422]
+  Kernel driver in use: vfio-pci
+  Kernel modules: snd_hda_intel
+miyakz@lily2:~$ 
+
+ここまでで、VFIO効いているけど、例のメッセージが出ている状態
+
+ 71-nvidia.rules
+-------------------------------------------
+# Tag the device as master-of-seat so that logind is happy
+# (see LP: #1365336)
+SUBSYSTEM=="pci", ATTRS{vendor}=="0x10de", DRIVERS=="nvidia", TAG+="seat", TAG+="master-of-seat"
+
+# Start and stop nvidia-persistenced on power on and power off
+# respectively
+ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", TAG+="systemd", ENV{SYSTEMD_WANTS}="nvidia-persistenced.service"
+
+# Load and unload nvidia-modeset module
+ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-modeset"
+ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-modeset"
+
+# Load and unload nvidia-drm module
+ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-drm"
+ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-drm"
+
+# Load and unload nvidia-uvm module
+ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-uvm"
+ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-uvm"
+
+# This will create the device nvidia device nodes
+ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/ub-device-create"
+
+# Create the device node for the nvidia-uvm module
+ACTION=="add", DEVPATH=="/module/nvidia_uvm", SUBSYSTEM=="module", RUN+="/sbin/ub-device-create"
+
+# Enable runtime PM for NVIDIA VGA/3D controller devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"
+
+# Enable runtime PM for NVIDIA Audio devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", TEST=="power/control", ATTR{power/control}="auto"
+
+# Enable runtime PM for NVIDIA USB xHCI Host Controller devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c0330", TEST=="power/control", ATTR{power/control}="auto"
+
+# Enable runtime PM fo NVIDIA USB Type-C UCSI devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c8000", TEST=="power/control", ATTR{power/control}="auto"
+-------------------------------------------
+
+modprobe呼び出しているところをコメントアウトする。途中でudevdを再起動したら例のメッセージが止まった。
+試しに、システムをrebootしてみる。
+
+ＯＫ！
+例のエラーメッセージも出なく、VFIOが効いている
+
+【実施したこと】
+
+1) VFIOの設定
+/etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="vfio-pci.ids=10de:128b,10de:0e0f"
+
+2) udevのNVIDIA関連のmodprobe無効化
+
+modprobeしている以下をコメントアウト
+# Load and unload nvidia-modeset module
+#ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-modeset"
+#ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-modeset"
+
+# Load and unload nvidia-drm module
+#ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-drm"
+#ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-drm"
+
+# Load and unload nvidia-uvm module
+#ACTION=="add", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe nvidia-uvm"
+#ACTION=="remove", DEVPATH=="/bus/pci/drivers/nvidia", RUN+="/sbin/modprobe -r nvidia-uvm"
+
+
+以上
+
+【VMの設定】
+
+1) virt-managerでNVIDIAデバイスの選択
+
+2) hiddenの設定
+
+virsh edit で以下のように、featuresタグにkvmタグのhiddenを追加。
+
+  <features>
+    <acpi/>
+    <apic/>
+    <kvm>
+      <hidden state='on'/>
+    </kvm>
+    <vmport state='off'/>
+  </features>
+
+そうすると、システム再起動後にlily2応答せず、、、なぜか？
+
+virsh start ai03
+とやるとしばらくして、ハングアップ。
+
+ai03がautostartの状態で起動すると以下のログが出る様子。あやしい。
+
+
+Oct 28 15:27:37 lily2 kernel: [  104.425570] watchdog: BUG: soft lockup - CPU#13 stuck for 23s! [systemd-udevd:275]
+Oct 28 15:27:37 lily2 kernel: [  104.425570] Modules linked in: usbhid igb(+) ahci cryptd dca fjes(-) glue_helper libahci drm hid i2c_piix4 i2c_algo_b
+it wmi
+Oct 28 15:27:37 lily2 kernel: [  104.425574] CPU: 13 PID: 275 Comm: systemd-udevd Not tainted 5.4.0-131-generic #147-Ubuntu
+Oct 28 15:27:37 lily2 kernel: [  104.425575] Hardware name: Gigabyte Technology Co., Ltd. X570 AORUS ELITE/X570 AORUS ELITE, BIOS F5b 09/17/2019
+Oct 28 15:27:37 lily2 kernel: [  104.425578] RIP: 0010:console_unlock+0x366/0x4e0
+Oct 28 15:27:37 lily2 kernel: [  104.425579] Code: 85 59 ff ff ff e8 fa f8 ff ff 85 c0 0f 85 ec fc ff ff e9 47 ff ff ff 0f b7 70 08 e9 5b ff ff ff e8 9f 26 00 00 4c 89 ff 57 9d <0f> 1f 44 00 00 8b 45 cc 85 c0 0f 84 0c fd ff ff e8 35 bd 9e 00 e9
+Oct 28 15:27:37 lily2 kernel: [  104.425580] RSP: 0018:ffffa7ecc0b87b38 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff13
+Oct 28 15:27:37 lily2 kernel: [  104.425581] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 00000000ffffffff
+Oct 28 15:27:37 lily2 kernel: [  104.425581] RDX: 0000000000000000 RSI: 0000000000000004 RDI: 0000000000000246
+Oct 28 15:27:37 lily2 kernel: [  104.425581] RBP: ffffa7ecc0b87b70 R08: 0000000000000000 R09: 0000000000000000
+Oct 28 15:27:37 lily2 kernel: [  104.425582] R10: ffff93ca97edb430 R11: 0000000000000001 R12: 000000000000003c
+Oct 28 15:27:37 lily2 kernel: [  104.425582] R13: 0000000000000000 R14: ffffffff87b9ee30 R15: 0000000000000246
+Oct 28 15:27:37 lily2 kernel: [  104.425583] FS:  00007f4b4258d880(0000) GS:ffff93ca9eb40000(0000) knlGS:0000000000000000
+Oct 28 15:27:37 lily2 kernel: [  104.425583] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+Oct 28 15:27:37 lily2 kernel: [  104.425583] CR2: 0000563149159ba8 CR3: 0000000fbf506000 CR4: 0000000000340ee0
+Oct 28 15:27:37 lily2 kernel: [  104.425584] Call Trace:
+Oct 28 15:27:37 lily2 kernel: [  104.425586]  vprintk_emit+0x17e/0x290
+Oct 28 15:27:37 lily2 kernel: [  104.425588]  vprintk_default+0x29/0x50
+Oct 28 15:27:37 lily2 kernel: [  104.425589]  vprintk_func+0x4c/0xc0
+Oct 28 15:27:37 lily2 kernel: [  104.425589]  ? 0xffffffffc0367000
+Oct 28 15:27:37 lily2 kernel: [  104.425591]  printk+0x58/0x6f
+Oct 28 15:27:37 lily2 kernel: [  104.425596]  igb_init_module+0x36/0x1000 [igb]
+Oct 28 15:27:37 lily2 kernel: [  104.425597]  do_one_initcall+0x4a/0x200
+Oct 28 15:27:37 lily2 kernel: [  104.425599]  ? kfree+0x231/0x250
+Oct 28 15:27:37 lily2 kernel: [  104.425601]  ? _cond_resched+0x19/0x30
+Oct 28 15:27:37 lily2 kernel: [  104.425601]  ? kmem_cache_alloc_trace+0x1b0/0x240
+Oct 28 15:27:37 lily2 kernel: [  104.425603]  do_init_module+0x52/0x240
+Oct 28 15:27:37 lily2 kernel: [  104.425604]  load_module+0x11e6/0x1320
+Oct 28 15:27:37 lily2 kernel: [  104.425605]  __do_sys_finit_module+0xbe/0x120
+Oct 28 15:27:37 lily2 kernel: [  104.425606]  ? __do_sys_finit_module+0xbe/0x120
+Oct 28 15:27:37 lily2 kernel: [  104.425607]  __x64_sys_finit_module+0x1a/0x20
+Oct 28 15:27:37 lily2 kernel: [  104.425608]  do_syscall_64+0x57/0x190
+Oct 28 15:27:37 lily2 kernel: [  104.425609]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+Oct 28 15:27:37 lily2 kernel: [  104.425610] RIP: 0033:0x7f4b42bb873d
+Oct 28 15:27:37 lily2 kernel: [  104.425611] Code: 00 c3 66 2e 0f 1f 84 00 00 00 00 00 90 f3 0f 1e fa 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 23 37 0d 00 f7 d8 64 89 01 48
+Oct 28 15:27:37 lily2 kernel: [  104.425611] RSP: 002b:00007fffbf1414f8 EFLAGS: 00000246 ORIG_RAX: 0000000000000139
+Oct 28 15:27:37 lily2 kernel: [  104.425611] RAX: ffffffffffffffda RBX: 00005574fd7ec180 RCX: 00007f4b42bb873d
+
+
+以下、virsh start ai03とした時のシステムのログ。
+
+
+2022-10-28T17:02:18.502081Z qemu-system-x86_64: -device vfio-pci,host=0000:07:00.0,id=hostdev0,bus=pci.7,addr=0x0: Failed to mmap 0000:07:00.0 BAR 3. Performance may be slow
+これが怪しいのだろうか、やっぱり怪しいよね。
+
+Oct 28 17:01:11 lily2 systemd[1]: Started Virtual Machine qemu-4-ai03.
+Oct 28 17:01:11 lily2 libvirtd[5457]: 2022-10-28 17:01:11.190+0000: 5457: info : libvirt version: 6.0.0, package: 0ubuntu8.16 (Marc Deslauriers <marc.deslauriers@ubuntu.com> Wed, 20 Apr 2022 11:31:12 -0400)
+Oct 28 17:01:11 lily2 libvirtd[5457]: 2022-10-28 17:01:11.190+0000: 5457: info : hostname: lily2
+Oct 28 17:01:11 lily2 libvirtd[5457]: 2022-10-28 17:01:11.190+0000: 5457: warning : virSecurityValidateTimestamp:198 : Invalid XATTR timestamp detected on /var/lib/libvirt/images/ai03.qcow2 secdriver=dac
+Oct 28 17:01:11 lily2 libvirtd[5457]: 2022-10-28 17:01:11.190+0000: 5457: warning : virSecurityValidateTimestamp:198 : Invalid XATTR timestamp detected on /home/miyakz/vms/ai03.qcow2 secdriver=dac
+Oct 28 17:01:12 lily2 avahi-daemon[989]: Joining mDNS multicast group on interface vnet4.IPv6 with address fe80::fc54:ff:fe1a:9892.
+Oct 28 17:01:12 lily2 avahi-daemon[989]: New relevant interface vnet4.IPv6 for mDNS.
+Oct 28 17:01:12 lily2 systemd-networkd[949]: vnet4: Gained IPv6LL
+Oct 28 17:01:12 lily2 avahi-daemon[989]: Registering new address record for fe80::fc54:ff:fe1a:9892 on vnet4.*.
+Oct 28 17:01:12 lily2 named[1185]: listening on IPv6 interface vnet4, fe80::fc54:ff:fe1a:9892%19#53
+Oct 28 17:01:13 lily2 kernel: [ 2477.504041] virbr0: port 5(vnet4) entered learning state
+Oct 28 17:01:15 lily2 kernel: [ 2479.520022] virbr0: port 5(vnet4) entered forwarding state
+Oct 28 17:01:15 lily2 kernel: [ 2479.520024] virbr0: topology change detected, propagating
+Oct 28 17:01:46 lily2 libvirtd[5177]: Cannot start job (query, none, none) for domain ai03; current job is (async nested, none, start) owned by (5181 remoteDispatchDomainCreate, 0 <null>, 5181 remoteDispatchDomainCreate (flags=0x0)) for (32s, 0s, 32s)
+Oct 28 17:01:55 lily2 libvirtd[5177]: Timed out during operation: cannot acquire state change lock (held by monitor=remoteDispatchDomainCreate)
+Oct 28 17:02:20 lily2 kernel: [ 2542.978856] vfio-pci 0000:07:00.0: BAR 3: can't reserve [mem 0xf0000000-0xf1ffffff 64bit pref]
+Oct 28 17:02:25 lily2 kernel: [ 2548.734961] vfio-pci 0000:07:00.0: No more image in the PCI ROM
+
+要するに、ＶＭからvfioのデバイスが上手く見えていない？様子。
+
+これでＶＭホスト全体が遅くなるとかやばいだろう。
+
+Oct 28 15:27:37 lily2 kernel: [    2.561029] VFIO - User Level meta-driver version: 0.3
+Oct 28 15:27:37 lily2 kernel: [    2.563593] vfio-pci 0000:07:00.0: vgaarb: changed VGA decodes: olddecodes=io+mem,decodes=io+mem:owns=io+mem
+Oct 28 15:27:37 lily2 kernel: [    2.588032] vfio_pci: add [10de:128b[ffffffff:ffffffff]] class 0x000000/00000000
+Oct 28 15:27:37 lily2 kernel: [    2.612091] vfio_pci: add [10de:0e0f[ffffffff:ffffffff]] class 0x000000/00000000
+
+GRUB_CMDLINE_LINUX_DEFAULT="vfio-pci.ids=10de:128b,10de:0e0f"
+
+
+miyakz@lily2:~$ lspci | grep -i nvidia
+07:00.0 VGA compatible controller: NVIDIA Corporation GK208B [GeForce GT 710] (rev a1)
+07:00.1 Audio device: NVIDIA Corporation GK208 HDMI/DP Audio Controller (rev a1)
+miyakz@lily2:~$ lsmod | grep -i nvidia
+miyakz@lily2:~$ 
+
+miyakz@lily2:~$ lspci -nn | grep -i nvidia
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~$ 
+
+
+
+んー。よくわからない。vmhost上の設定が上手く言ったと思ったら、（例のログが出ない。)、
+今度はＶＭ側でデバイスが上手く認識できないとか。
+
+
+
+
+
+
+その後の再起動。
+VFIOを入れてから起動が遅い？
+
+
+[11/1]
+わりかし、最初から気を撮り直してやってみる。
+
+1) lily2でのIOMMUの状況
+
+miyakz@lily2:~/bin$ ./iommu.sh  | grep -i nvidia
+IOMMU Group 2 07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1)
+IOMMU Group 2 07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+miyakz@lily2:~/bin$ 
+
+IOMMU Groupが2なのでこれをセットでパススルー必要とのこと。
+
+2) vfio
+
+GRUB_CMDLINE_LINUX_DEFAULT="vfio-pci.ids=10de:128b,10de:0e0f"
+
+
+3) updating grub
+
+sudo update-grub
+
+4) reboot system
+
+5) veriby VFIO configuration
+
+07:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK208B [GeForce GT 710] [10de:128b] (rev a1) (prog-if 00 [VGA controller])
+        Subsystem: ZOTAC International (MCO) Ltd. GK208B [GeForce GT 710] [19da:1422]
+        Flags: bus master, fast devsel, latency 0, IRQ 10
+        Memory at f6000000 (32-bit, non-prefetchable) [size=16M]
+        Memory at e8000000 (64-bit, prefetchable) [size=128M]
+        Memory at f0000000 (64-bit, prefetchable) [size=32M]
+        I/O ports at e000 [size=128]
+        Expansion ROM at 000c0000 [disabled] [size=128K]
+        Capabilities: <access denied>
+        Kernel driver in use: vfio-pci
+        Kernel modules: nvidiafb, nouveau
+
+07:00.1 Audio device [0403]: NVIDIA Corporation GK208 HDMI/DP Audio Controller [10de:0e0f] (rev a1)
+        Subsystem: ZOTAC International (MCO) Ltd. GK208 HDMI/DP Audio Controller [19da:1422]
+        Flags: bus master, fast devsel, latency 0, IRQ 4
+        Memory at f7080000 (32-bit, non-prefetchable) [size=16K]
+        Capabilities: <access denied>
+        Kernel driver in use: vfio-pci
+        Kernel modules: snd_hda_intel
+
+6) 新しくVMを作ってみる
+
+今までは、ai03(既存マシン）の設定を変更していて、上記のようなvery slowというエラーを得ていた。
+今度は新規に作ってみる。
+
+OSが空っぽのマシンを作成したためか、lily2まるごとのハング現象を回避できた。
+しかし、変わらず、以下のエラーあり、
+
+2022-11-01T13:23:02.284664Z qemu-system-x86_64: -device vfio-pci,host=0000:07:00.0,id=hostdev0,bus=pci.6,addr=0x0: Failed to mmap 0000:07:00.0 BAR 3. Performance may be slow
+
+
+7) CPUを"host-passthrough"に設定
+
+host-passthrough,sockets1,cores4,threads2でも同じエラー
+
+しかし、同じエラー
+
+
+8) offにしてみる 
+
+miyakz@lily2:~$ cat /proc/cmdline 
+BOOT_IMAGE=/boot/vmlinuz-5.4.0-131-generic root=UUID=59240685-bfd2-4c4f-b5a6-a6c303a8a0b2 ro vfio-pci.ids=10de:128b,10de:0e0f video=vesafb:off,efifb:off
+miyakz@lily2:~$ 
+
+
+しかし、同じエラー。しつこい。
+
+
+9) 指定の仕方をカエル?
+
+
+
+2022-11-01T14:06:13.662500Z qemu-system-x86_64: -device vfio-pci,host=0000:07:00.0,id=hostdev0,bus=pci.6,addr=0x0: Failed to mmap 0000:07:00.0 BAR 3. Performance may be slow
+
+
+  +- pci_0000_00_02_0
+  +- pci_0000_00_03_0
+  +- pci_0000_00_03_1
+  |   |
+  |   +- pci_0000_07_00_0
+  |   +- pci_0000_07_00_1
+
+これを指定して、virt-installする、同じエラー。さらに悪くなる。しつこい。
+
+miyakz@lily2:~/nvidia_gpu_exp$ cat create.sh 
+set -x
+virt-install --accelerate --hvm \
+    --connect qemu:///system \
+    --name gpuvm01\
+    --vcpus 1 \
+    --ram 2048 \
+    --file-size 24 \
+    --file "/var/lib/libvirt/images/gpuvm01.img" \
+    --os-variant ubuntu16.04 \
+    --boot hd,cdrom,menu=on \
+    --cdrom "/home/miyakz/cdimage/ubuntu-20.04.1-live-server-amd64" \
+    --machine q35 \
+    --host-device=pci_0000_07_00_0
+miyakz@lily2:~/nvidia_gpu_exp$ 
+
+qemu-system-x86_64: vfio_region_write(0000:07:00.0:region3+0x524a8, 0x0,8) failed: Device or resource busy
+
+9) nommconfを指定してみる。
+
+miyakz@lily2:~$ cat /proc/cmdline 
+BOOT_IMAGE=/boot/vmlinuz-5.4.0-131-generic root=UUID=59240685-bfd2-4c4f-b5a6-a6c303a8a0b2 ro vfio-pci.ids=10de:128b,10de:0e0f video=vesafb:off,efifb:off pci=nommconf
+miyakz@lily2:~$ 
+
+同じエラー。
+さらに2022-11-01T14:46:33.772664Z qemu-system-x86_64: vfio_region_write(0000:07:00.0:region3+0x524a8, 0x0,8) failed: Device or resource busy
+
+2022-11-01T14:55:01.400881Z qemu-system-x86_64: -device vfio-pci,host=0000:07:00.0,id=hostdev0,bus=pci.4,addr=0x0: Failed to mmap 0000:07:00.0 BAR 3. Performance may be slow
+
+10) multifunc?
+
+2022-11-01T15:11:14.980926Z qemu-system-x86_64: -device vfio-pci,host=0000:07:00.0,id=hostdev0,bus=pci.6,multifunction=on,addr=0x0: Failed to mmap 0000:07:00.0 BAR 3. Performance may be slow
+
+
+11) このＵＲＬの説明
+https://blog.csdn.net/a985588764/article/details/109525281
+
+
+
+
+【自分のカーネルオプショの状況】
+
+miyakz@lily2:~/nvidia_gpu_exp$ grep -rn -i vfio /boot/config-5.4.0-* 
+/boot/config-5.4.0-128-generic:719:CONFIG_KVM_VFIO=y
+/boot/config-5.4.0-128-generic:7929:CONFIG_VFIO_IOMMU_TYPE1=y
+/boot/config-5.4.0-128-generic:7930:CONFIG_VFIO_VIRQFD=y
+/boot/config-5.4.0-128-generic:7931:CONFIG_VFIO=y
+/boot/config-5.4.0-128-generic:7932:CONFIG_VFIO_NOIOMMU=y
+/boot/config-5.4.0-128-generic:7933:CONFIG_VFIO_PCI=y
+/boot/config-5.4.0-128-generic:7934:CONFIG_VFIO_PCI_VGA=y
+/boot/config-5.4.0-128-generic:7935:CONFIG_VFIO_PCI_MMAP=y
+/boot/config-5.4.0-128-generic:7936:CONFIG_VFIO_PCI_INTX=y
+/boot/config-5.4.0-128-generic:7937:CONFIG_VFIO_PCI_IGD=y
+/boot/config-5.4.0-128-generic:7938:CONFIG_VFIO_MDEV=m
+/boot/config-5.4.0-128-generic:7939:CONFIG_VFIO_MDEV_DEVICE=m
+/boot/config-5.4.0-128-generic:10432:# CONFIG_SAMPLE_VFIO_MDEV_MTTY is not set
+/boot/config-5.4.0-128-generic:10433:# CONFIG_SAMPLE_VFIO_MDEV_MDPY is not set
+/boot/config-5.4.0-128-generic:10434:# CONFIG_SAMPLE_VFIO_MDEV_MDPY_FB is not set
+/boot/config-5.4.0-128-generic:10435:# CONFIG_SAMPLE_VFIO_MDEV_MBOCHS is not set
+/boot/config-5.4.0-131-generic:719:CONFIG_KVM_VFIO=y
+/boot/config-5.4.0-131-generic:7929:CONFIG_VFIO_IOMMU_TYPE1=y
+/boot/config-5.4.0-131-generic:7930:CONFIG_VFIO_VIRQFD=y
+/boot/config-5.4.0-131-generic:7931:CONFIG_VFIO=y
+/boot/config-5.4.0-131-generic:7932:CONFIG_VFIO_NOIOMMU=y
+/boot/config-5.4.0-131-generic:7933:CONFIG_VFIO_PCI=y
+/boot/config-5.4.0-131-generic:7934:CONFIG_VFIO_PCI_VGA=y
+/boot/config-5.4.0-131-generic:7935:CONFIG_VFIO_PCI_MMAP=y
+/boot/config-5.4.0-131-generic:7936:CONFIG_VFIO_PCI_INTX=y
+/boot/config-5.4.0-131-generic:7937:CONFIG_VFIO_PCI_IGD=y
+/boot/config-5.4.0-131-generic:7938:CONFIG_VFIO_MDEV=m
+/boot/config-5.4.0-131-generic:7939:CONFIG_VFIO_MDEV_DEVICE=m
+/boot/config-5.4.0-131-generic:10432:# CONFIG_SAMPLE_VFIO_MDEV_MTTY is not set
+/boot/config-5.4.0-131-generic:10433:# CONFIG_SAMPLE_VFIO_MDEV_MDPY is not set
+/boot/config-5.4.0-131-generic:10434:# CONFIG_SAMPLE_VFIO_MDEV_MDPY_FB is not set
+/boot/config-5.4.0-131-generic:10435:# CONFIG_SAMPLE_VFIO_MDEV_MBOCHS is not set
+miyakz@lily2:~/nvidia_gpu_exp$ 
+
+
+
+
+
