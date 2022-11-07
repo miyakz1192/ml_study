@@ -851,8 +851,152 @@ VMとlily2のubuntuのバージョンが微妙に違うため、おそらく、n
 一旦VMでの利用は諦めよう。
 
 まぁ、一旦lily2ごとshutdownした後起動すると見えるようになるかもしれんし。。。
+
+A) Ubuntuのapt upgradedしてみる
+
+upgraded前::
+
+  a@a:~$ cat /etc/issue
+  Ubuntu 20.04.1 LTS \n \l
+  
+  a@a:~$ 
+  
+upgradedあと。::
+
+  a@a:~$ cat /etc/issue
+  Ubuntu 20.04.5 LTS \n \l
+  
+  a@a:~$ 
+
+
+
+
+
+  
+B) Ubuntuのversionを20.10にしてみる。
+
+結局ダメでした。nouveauが変になるので、blacklistに入れて、450-serverを入れて、、、::
+
+  a@a:~$ ./check.sh 
+  ++ sudo ls
+  [sudo] password for a: 
+  check.sh  nvidia_remove.sh
+  ++ echo 'nvidia installed (device)'
+  nvidia installed (device)
+  ++ sudo lspci
+  ++ grep -i nvidia
+  06:00.0 VGA compatible controller: NVIDIA Corporation GK208B [GeForce GT 710] (rev a1)
+  ++ echo 'nvidia smi'
+  nvidia smi
+  ++ sudo nvidia-smi
+  No devices were found
+  ++ echo 'nvidia driver stuff installed'
+  nvidia driver stuff installed
+  ++ grep -i nvidia
+  ++ sudo apt list --installed
+  
+  WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+  
+  libnvidia-cfg1-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-common-470/kinetic,now 470.141.03-0ubuntu1 all [installed,automatic]
+  libnvidia-compute-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-decode-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-egl-wayland1/kinetic,now 1:1.1.10-1 amd64 [installed,automatic]
+  libnvidia-encode-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-extra-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-fbc1-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-gl-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  libnvidia-ifr1-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-compute-utils-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-cuda-gdb/kinetic,now 11.5.114~11.5.2-1ubuntu1 amd64 [installed,auto-removable]
+  nvidia-cuda-toolkit-doc/kinetic,now 11.5.2-1ubuntu1 all [installed,auto-removable]
+  nvidia-dkms-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-driver-450/kinetic,now 460.91.03-0ubuntu1 amd64 [installed]
+  nvidia-driver-460/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-driver-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-kernel-common-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-kernel-source-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-prime/kinetic,now 0.8.17.1 all [installed,automatic]
+  nvidia-settings/kinetic,now 510.47.03-0ubuntu1 amd64 [installed,automatic]
+  nvidia-utils-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  xserver-xorg-video-nvidia-470/kinetic,now 470.141.03-0ubuntu1 amd64 [installed,automatic]
+  ++ echo 'nvcc '
+  nvcc 
+  ++ nvcc --version
+  ./check.sh: line 10: nvcc: command not found
+  a@a:~$ cat /etc/issue
+  Ubuntu 22.10 \n \l
+  
+  a@a:~$ 
+
+※ VmのXMLを直していないのがちょっと気になる、
+
+C) Fedora
+
+全体の手順が乗っており、わかりやすい？
+
+http://kikei.github.io/linux/2021/05/18/nvidia.html
+
+https://blog.osakana.net/archives/11286
+
+→　結局、470ドライバのカーネルモジュールビルドでこける（インストーラ失敗）
+
+D) 他の方法
+
+cuda-installで簡単という話。これはやってみたほうがよいかも？？
+
+https://zenn.dev/190ikp/articles/how_to_install_nvidia_drivers
+
+cuda-installでやると、やっぱりへんな状態に::
+
+  a@a:~$ sudo nvidia-smi 
+  NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running.
+  
+  a@a:~$ 
+  
+  [  138.080860] nvidia-nvlink: Nvlink Core is being initialized, major device number 236
+  [  138.080867] NVRM: The NVIDIA GeForce GT 710 GPU installed in this system is
+                 NVRM:  supported through the NVIDIA 470.xx Legacy drivers. Please
+                 NVRM:  visit http://www.nvidia.com/object/unix.html for more
+                 NVRM:  information.  The 520.61.05 NVIDIA driver will ignore
+                 NVRM:  this GPU.  Continuing probe...
+  [  138.083016] NVRM: No NVIDIA GPU found.
+  [  138.083277] nvidia-nvlink: Unregistered Nvlink Core, major device number 236
+  a@a:~$ 
   
 
+やっぱりドライバ新しすぎるのかいな。
+470に変えてもＮＧ．
+
+E) 万策尽きた。VMへのGPUパススルーは諦めて、ホスト(lily2)でやる
+
+
+参考：check.sh/nvidia_removeスクリプト
+---------------------------------------
+
+スクリプトは以下。::
+
+  a@a:~$ cat check.sh 
+  set -x
+  sudo ls
+  echo "nvidia installed (device)"
+  sudo lspci | grep -i nvidia
+  echo "nvidia smi"
+  sudo nvidia-smi
+  echo "nvidia driver stuff installed"
+  sudo apt list --installed | grep -i nvidia
+  echo "nvcc "
+  nvcc --version
+  a@a:~$ cat nvidia_remove.sh 
+  set -x
+  sudo apt list --installed | grep -i nvidia
+  
+  sudo apt-get purge "*nvidia*"
+  
+  sudo apt list --installed | grep -i nvidia
+  
+  a@a:~$ 
+  
 
 
 vmのXMLダンプ
