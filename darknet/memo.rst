@@ -115,13 +115,3 @@ tinyのモデルをダウンロードして、darknetを実行するのみ。::
 
   wget https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.conv.29
   ./darknet detector train ds1/obj.data ds1/yolov4-tiny-custom.cfg ds1/yolov4-tiny.conv.29
-
-
-
-
-
-
-
-
-
-
