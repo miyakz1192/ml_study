@@ -216,6 +216,53 @@ https://qiita.com/zumax/items/0727e329f3322897d3e7
 純粋に×マークより少し広い範囲まで含めてしまっているような気がする。
 要するに、もう少し学習データを精度よくすれば良いのではないか。
 
+また、mAPの計算の時に、
+./ds2/Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.txt
+が見つかりませんみたいなメッセージが出ている。これ、もしかしたら、txtが誤って画像見たいに認識されていないかな。
+
+valid.txtがバグっているわ。これがもしかしたら、学習に影響しているかも。::
+
+  miyakz@lily2:~/git_repos/darknet/ds2$ cat valid.txt 
+  ./ds2/Screenshot_2022-11-11-00-35-14-37_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-35-55-52_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-37-18-58_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-39-39-59_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-41-06-93_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.txt
+  miyakz@lily2:~/git_repos/darknet/ds2$ 
+  
+  trainは大丈夫の様子。
+  miyakz@lily2:~/git_repos/darknet/ds2$ cat train.txt 
+  ./ds2/Screenshot_2022-10-21-00-19-35-30_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-10-21-00-21-51-38_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-10-21-00-23-35-12_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-10-21-00-25-42-95_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-31-27-10_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-32-36-53_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  ./ds2/Screenshot_2022-11-11-00-34-25-48_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  miyakz@lily2:~/git_repos/darknet/ds2$ 
+
+
+気づきまとめ(1)
+================
+
+1)  valid.txtがバグっている(txt)が混入している
+
+2)  iterationが9000まで行っていない(とはいえどもmAPは0のままだが)
+
+3) そもそもアノテーション箇所が間違っている
+
+4) 学習データ数が足りない(100からがスタート、通常は数千)
+
+5) 既存重みファイルを指定するのが良いみたい
+
+
+とりあえず、ds2はいろいろとおかしい所が満載かもしれないが、
+とりあえず、9000イテレーションまでを迎えてみて、どうなのか？を確認してみる
+
+
+
 
 
 
