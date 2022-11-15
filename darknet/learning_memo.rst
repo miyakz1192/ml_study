@@ -298,3 +298,88 @@ data augumentationを使って訓練データや検証データを水増し(594�
 なお、単に×画像をいろいろと拡大、縮小、回転、明るさなどを変えた画像を大量に入れた(train=200,valid=394)。
 その他、validデータとして、ゲームの画像を入れた。
 
+結果と考察
+------------
+
+2881イテレーションを経過した時点での状況。
+
+「半分」上手く行った。
+まず、学習用、検証用に自分で作った×画像については学習できたし、正しく検出出来た様子。
+学習中に(2881イテレーション)、0.05 avg/mAP=94.86%となりかなりいい感じになっている。
+しかし、validデータ中に含まれるゲーム画像中の×については全く検出しない。
+data augumentationかましたデータの世界だとＯＫだけど、現実のゲーム画像では全然ヒットしないという悲しい結果に。
+ただ、自分自身が指定したパターンでの学習と検証が確認でき、Darknetでの画像認識の実現性がこれで少し確認はできたので、
+少しは進歩したと思って良い。
+
+以下、考察。
+
+1) trainデータ中のゲーム画像の×のバリエーションが不足しているのではないか。しかし、これはたくさんのサンプル画像を用意する必要があり、かなりの手間ではある。しかし、100~200画像位ならなんとか努力の範囲かもしれない
+
+2) 9000イテレーションは回してみる(11/15時点では2991イテレーションのため、もう２日位は回してみる)
+
+3) 画像のサイズの不一致が起きている？学習と検証用にdata augumentationして作った画像のサイズは32×32でかなり小さい。それに対して、ゲーム用の画像は1080×2400のサイズになっているため。この心配を検証するために、1080×2400の画像ファイルを編集し、100%近く検出できる×画像を直接埋め込んで見る。それを、11/15時点で出来た重みファイルを用いて検出できるかを確認する。検出できるなら問題なさそうだし、検出できないなら、画像サイズの不一致がまずいのかもしれないという予測になる。
+  結果はNG。./ds3/close_data/close1.jpgそのものは89%の確率でcloseと識別できるが、./ds3/close_data/close1.jpgが混じったScreenshot_test.jpg(1080×2400)は検出できなかった。なんでだろう。
+
+
+しかし、サンプル中のdog.jpgやeagle.jpgなどは画像の大きさがそれぞれ違う。::
+
+  miyakz@lily2:~/git_repos/darknet/data$ ls *jpg | while read line
+  > do
+  > file $line
+  > done
+  dog.jpg: JPEG image data, Exif standard: [TIFF image data, big-endian, direntries=10, description=                               , manufacturer=Canon, model=Canon PowerShot S95, orientation=upper-left, xresolution=192, yresolution=200, resolutionunit=2, software=Photos 1.0, datetime=2014:09:19 16:08:30], baseline, precision 8, 768x576, components 3
+  eagle.jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=9, manufacturer=PENTAX             , model=PENTAX K-5         , orientation=upper-left, xresolution=162, yresolution=170, resolutionunit=2, software=Photos 1.0, datetime=2013:07:19 21:57:42], baseline, precision 8, 773x512, components 3
+  giraffe.jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 300x300, segment length 16, baseline, precision 8, 500x500, components 3
+  horses.jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=9, manufacturer=PENTAX             , model=PENTAX K-5         , orientation=upper-left, xresolution=162, yresolution=170, resolutionunit=2, software=Photos 1.0, datetime=2013:04:13 15:02:50], baseline, precision 8, 773x512, components 3
+  person.jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=9, manufacturer=PENTAX             , model=PENTAX K-5         , orientation=upper-left, xresolution=162, yresolution=170, resolutionunit=2, software=Photos 1.0, datetime=2013:04:13 14:59:36], baseline, precision 8, 640x424, components 3
+  rizard.jpg: JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 800x500, components 3
+  scream.jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=6, orientation=upper-left, xresolution=86, yresolution=94, resolutionunit=2, software=Paint.NET v3.5.5], baseline, precision 8, 352x448, components 3
+  miyakz@lily2:~/git_repos/darknet/data$ 
+
+
+ただ、これらファイルは画像のサイズはマチマチではあるが、大体３桁×３桁のサイズに対して、今回のds3はtrain/validともに32×32であり、Screenshot系は1080×2400と100倍以上のサイズの差はある。これが今回のNGにつながっているかどうかはわからない。。。
+
+しかし、なんか、変な感じはする。ネットワークのサイズがそもそも、416 x 416 になっていること、および、close1.txtで0.5 0.5 1.0 1.0で画像全体の比率を指定している中たりからすると、32 x 32の画像では「検出してほしいサイズの」closeになっているが、416 x 416のサイズで解釈された時に416 x 416全体を目一杯使ったcloseに「ひきのばされて」いないか？::
+
+   layer   filters  size/strd(dil)      input                output
+   0 conv     32       3 x 3/ 2    416 x 416 x   3 ->  208 x 208 x  32 0.075 BF
+
+まさに、close1.jpgの×を1080 x 2400に引き伸ばした画像を作成して、ds3のbestの重みで学習させた所、closeとして認識された。
+これが、ゲーム画像(1080 x 2400)に埋め込まれた32 x 32サイズのcloseマークを検出できなかった原因だ！::
+
+  temp/Screenshot_test3_long.jpg: Predicted in 510.126000 milli-seconds.
+  close: 70%
+
+
+その後の検証として、train/validデータをやはり、1080 x 2400で用意して、サイズとしては32 x 32のcloseを作る。32 x 32の画像のもと、data augumentationでバリエーションを作り、それを1080 x 2400の空画像（背景が白）に、キッチり32 x 32のサイズとしてcloseを埋め込んだ上で、正しい比率をannotationの.txtファイルに指定すれば良いのだと思われる。
+
+
+ds3を停止nohup_ds3_20221116.logに結果を記録
+
+  
+ds4の計画と実行
+===================
+
+32 x 32画像の1080 x 2400画像への埋め込み&data augumentationは最新のdata_augmentation.ipynbで対応。
+そして、上記の考察を受けて、train/validデータを改めて用意する。::
+
+  a@imglabeling:~/labelImg/temp_for_ds4$ cat 0.txt 
+  0 0.015278 0.006875 0.028704 0.012917
+  a@imglabeling:~/labelImg/temp_for_ds4$ 
+  
+  miyakz@lily2:~/git_repos/darknet$ ruby -e "puts 16.0/1080.0"
+  0.014814814814814815
+  miyakz@lily2:~/git_repos/darknet$ ruby -e "puts 16.0/2400.0"
+  0.006666666666666667
+  miyakz@lily2:~/git_repos/darknet$ ruby -e "puts 32.0/1080.0"
+  0.02962962962962963
+  miyakz@lily2:~/git_repos/darknet$ ruby -e "puts 32.0/2040.0"
+  0.01568627450980392
+  miyakz@lily2:~/git_repos/darknet$ 
+  
+大体合っているので、一応、0.txtのannotationデータをすべてのtrain/valid画像に対して使う::
+
+  a@imglabeling:~/labelImg$ ./create_annotation_txt.sh temp_for_ds4/
+  a@imglabeling:~/labelImg$ 
+
+ds4をds3をベースに作り、学習開始(11/16 2:38)
