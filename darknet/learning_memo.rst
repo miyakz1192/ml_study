@@ -383,3 +383,242 @@ ds4の計画と実行
   a@imglabeling:~/labelImg$ 
 
 ds4をds3をベースに作り、学習開始(11/16 2:38)
+
+
+結果と考察
+------------
+
+11/17 22:33現在、3446 iteration時点でap値が0.4%、ロスが0.2位をぶらぶら。
+実際に画像をdetectさせてみると、::
+
+  miyakz@lily2:~/git_repos/darknet$ ./check_screen_shot.sh ds4 best
+  (snip)
+  close: 31%
+  close: 31%
+  close: 32%
+  close: 35%
+  close: 31%
+  close: 28%
+  close: 53%
+  close: 27%
+  close: 35%
+  close: 38%
+  close: 64%
+  close: 78%
+  close: 47%
+  close: 40%
+  close: 29%
+  close: 34%
+  close: 34%
+  close: 82%
+  close: 83%
+  close: 40%
+  close: 25%
+  close: 25%
+  close: 54%
+  close: 76%
+  close: 37%
+  close: 34%
+  close: 66%
+  close: 33%
+  close: 43%
+  close: 49%
+  close: 33%
+  close: 57%
+  close: 50%
+  close: 24%
+  close: 52%
+  close: 45%
+  close: 31%
+  close: 63%
+  close: 55%
+  close: 32%
+  close: 68%
+  close: 63%
+  close: 34%
+  close: 71%
+  close: 66%
+  close: 33%
+  close: 66%
+  close: 59%
+  close: 29%
+  close: 60%
+  close: 55%
+  close: 26%
+  close: 27%
+  close: 60%
+  close: 52%
+  close: 54%
+  close: 46%
+  close: 42%
+  close: 52%
+  close: 35%
+  close: 41%
+  close: 34%
+  close: 33%
+  close: 60%
+  close: 24%
+  close: 41%
+  close: 34%
+  close: 24%
+  close: 32%
+  close: 27%
+  close: 33%
+  miyakz@lily2:~/git_repos/darknet$ 
+
+
+実際、ゲーム画像に対してcloseを「検出」はしているのだが、もちろん、誤検出しまくっている。
+
+my_logs/nohup_ds3_20221116.logでは、iterationが1000でap = 80%くらいだったので、
+これ以上、ds4のiterationを続けてもダメかと思う。そう思う理由は以下のメッセージが出ているため、
+ds4での学習が上手く行っていないと考えた。ds3では同様のメッセージは出ていなかった。::
+
+  miyakz@lily2:~/git_repos/darknet$ grep -rn Cannot nohup.out  | sort | uniq
+  10737:Cannot load image 
+  11562:Cannot load image 
+  12387:Cannot load image 
+  13228:Cannot load image 
+  14061:Cannot load image 
+  14890:Cannot load image 
+  15715:Cannot load image 
+  16540:Cannot load image 
+  17365:Cannot load image 
+  18190:Cannot load image 
+  19019:Cannot load image 
+  19852:Cannot load image 
+  20681:Cannot load image 
+  21510:Cannot load image 
+  22335:Cannot load image 
+  23266:Cannot load image 
+  24099:Cannot load image 
+  24924:Cannot load image 
+  25753:Cannot load image 
+  8152:Cannot load image 
+  9083:Cannot load image 
+  9912:Cannot load image 
+  miyakz@lily2:~/git_repos/darknet$ 
+
+ほかにも以下。1000 iterationで初めてでて、以降、100 iterationごとに出るので、中々気づきにくい。::
+
+   (next mAP calculation at 1000 iterations) ESC]2;1000/500200: loss=0.2 hours left=3631.7^G
+   1000: 0.155323, 0.187253 avg loss, 0.002610 rate, 26.370815 seconds, 64000 images, 3631.749998 hours left
+    ^M4^M8^M12^M16^M20^M24^M28^M32^M36^M40^M44^M48^M52^M56^M60^M64^M68^M72^M76^M80^M84^M88^M92^M96^M100^M104^M108^M112^M116^M120^M124^M128^M132^M136^M140
+    ^M144^M148^M152^M156^M160^M164^M168^M172^M176^M180^M184^M188^M192^M196^M200^M204^M208^M212^M216^M220^M224^M228^M232^M236^M240^M244^M248^M252^M256^M260
+    ^M264^M268^M272^M276^M280^M284^M288^M292^M296^M300^M304^M308^M312^M316^M320^M324^M328^M332^M336^M340^M344^M348^M352^M356^M360^M364^M368^M372^M376^M380
+    ^M384^M388^M392^M396^M400^M404
+     calculation mAP (mean average precision)...
+     Detection layer: 30 - type = 28 
+     Detection layer: 37 - type = 28 
+    Cannot load image 
+    ^M408Label file name is too short:  
+    Can't open label file. (This can be normal only if you use MSCOCO):  
+    
+ds3の時のエラー。これが唯一。txtでデータ形式が間違っていただけなので、学習には根本的な影響は無いと判断。::
+  miyakz@lily2:~/git_repos/darknet$ grep Cannot my_logs/nohup_ds3_20221116.log  | sort | uniq
+  Cannot load image ./ds3/close_data/Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.txt
+  miyakz@lily2:~/git_repos/darknet$ 
+
+
+ds4のデータで個別にdetector mapをしてみるとエラーが再現。::
+  miyakz@lily2:~/git_repos/darknet$ ./darknet detector map  ./ds4/obj.data ./ds4/yolov4-tiny-custom.cfg ./ds4/backup/yolov4-tiny-custom_best.weights
+  (snip)
+  [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+  nms_kind: greedynms (1), beta = 0.600000 
+  Total BFLOPS 6.787 
+  avg_outputs = 299663 
+  Loading weights from ./ds4/backup/yolov4-tiny-custom_best.weights...
+   seen 64, trained: 172 K-images (2 Kilo-batches_64) 
+  Done! Loaded 38 layers from weights-file 
+  
+   calculation mAP (mean average precision)...
+   Detection layer: 30 - type = 28 
+   Detection layer: 37 - type = 28 
+  404Cannot load image 
+  408Label file name is too short:  
+  Can't open label file. (This can be normal only if you use MSCOCO):  
+  
+   detections_count = 24830, unique_truth_count = 407  
+  class_id = 0, name = close, ap = 0.36%   	 (TP = 57, FP = 5055) 
+  
+   for conf_thresh = 0.25, precision = 0.01, recall = 0.14, F1-score = 0.02 
+   for conf_thresh = 0.25, TP = 57, FP = 5055, FN = 350, average IoU = 0.56 % 
+  
+   IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+   mean average precision (mAP@0.50) = 0.003634, or 0.36 % 
+  Total Detection Time: 236 Seconds
+  
+  Set -points flag:
+   `-points 101` for MS COCO 
+   `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) 
+   `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+  miyakz@lily2:~/git_repos/darknet$ 
+
+valid.txtに空白を見つける::
+
+  miyakz@lily2:~/git_repos/darknet$ cat ds4/valid.txt | tail -2
+  ./ds4/close_data/Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  
+  miyakz@lily2:~/git_repos/darknet$ 
+
+もっかい実施してみる。::
+
+  [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+  nms_kind: greedynms (1), beta = 0.600000 
+  Total BFLOPS 6.787 
+  avg_outputs = 299663 
+  Loading weights from ./ds4/backup/yolov4-tiny-custom_best.weights...
+   seen 64, trained: 172 K-images (2 Kilo-batches_64) 
+  Done! Loaded 38 layers from weights-file 
+  
+   calculation mAP (mean average precision)...
+   Detection layer: 30 - type = 28 
+   Detection layer: 37 - type = 28 
+  408
+   detections_count = 23728, unique_truth_count = 407  
+  class_id = 0, name = close, ap = 0.44%   	 (TP = 57, FP = 4608) 
+  
+   for conf_thresh = 0.25, precision = 0.01, recall = 0.14, F1-score = 0.02 
+   for conf_thresh = 0.25, TP = 57, FP = 4608, FN = 350, average IoU = 0.62 % 
+  
+   IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+   mean average precision (mAP@0.50) = 0.004385, or 0.44 % 
+  Total Detection Time: 235 Seconds
+  
+  Set -points flag:
+   `-points 101` for MS COCO 
+   `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) 
+   `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+  miyakz@lily2:~/git_repos/darknet$ 
+
+エラーを解消したところでap値にほとんど変化は無い。
+
+ここで、少し考察。
+
+1) valid.txtの不具合を解消して再度学習(valit.txt(train.txt)に画像のみを入れる。かつ、空行を入れない。)
+
+2) ds3では1000 iterations位でap値が90%以上の好成績を出した。学習が上手く行っているかどうかを見るには、1000 iterations位で良いかもしれない。気になったら、そのタイミングで個別にdetect mapすれば良い。
+
+3) 誤検出が多いのでやっぱり、学習データのバリエーションが足りない？（データ数のみでなく）  trainデータ中のゲーム画像の×のバリエーションが不足しているのではないか。しかし、これはたくさんのサンプル画像を用意する必要があり、かなりの手間ではある。しかし、100~200画像位ならなんとか努力の範囲かもしれない
+
+4) tinyなのが悪い？昔、darknetを触り始めの頃に、普通にＤＬしてきたサンプルのweightとcfgを用いてbird/dogをdetectした所誤検出ばかりだったことを思い出した。しかし、tinyじゃない場合、非常に学習が遅いことも知っている。 
+
+3)に関して、以下を思い出した。
+オーグメンテーションはある程度精度が出ているモデルをさらに精度をよくするのには有用ですが、元々数枚程度しかバリエーションないものを水増しして1000枚にしたところで難しいのではないかと思います。
+Deep Learning は数千、数万のサンプルを使ってパラメータを調整するという仕組みのものなので、サンプルが用意できないのであれば、画像処理など別のアプローチを考えたほうがよいと思います。
+
+valid.txtの不具合を解消しもう一度、学習を実行する。
+現時点でのログをmy_logs/nohup_ds4_20221117_2241.logに格納する。
+
+まず、方針として1)の不具合を解消を実施し再度学習を進める。上手く行かない場合、tinyじゃないものに切り替える。それでも上手く行かない場合、やはり学習データが足りないと思われるので、バリエーションを増やしてみる。
+  
+
+ds4の再実行(valid.txtの不具合解消)
+========================================
+
+11/17 22:45開始〜
+
+
+データ処理の手順の半自動化
+==============================
+
+TOBE:やはり、バリエーションを増やすための作業の省力化をしたいものだ。
