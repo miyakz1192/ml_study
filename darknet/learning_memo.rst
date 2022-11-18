@@ -615,7 +615,45 @@ valid.txtの不具合を解消しもう一度、学習を実行する。
 ds4の再実行(valid.txtの不具合解消)
 ========================================
 
-11/17 22:45開始〜
+11/17 22:45開始〜11/18 20:53で、iterationsが2985回。::
+  
+   (next mAP calculation at 3000 iterations) 
+   2985: 0.178416, 0.183888 avg loss, 0.002610 rate, 26.172093 seconds, 191040 images, 3701.297353 hours left
+    v3 (iou loss, Normalizer: (iou: 0.07, obj: 1.00, cls: 1.00) Region 30 Avg (IOU: 0.000000), count: 1, class_loss = 0.000000, iou_loss = 0.000000, total_loss = 0.000000 
+   v3 (iou loss, Normalizer: (iou: 0.07, obj: 1.00, cls: 1.00) Region 37 Avg (IOU: 0.152555), count: 27, class_loss = 0.386920, iou_loss = 1.759697, total_loss = 2.146617 
+   total_bbox = 77221, rewritten_bbox = 0.000000 % 
+   MJPEG-stream sent. 
+   Loaded: 0.000039 seconds
+
+apが0かつ、avgもこれ以上下がらないので、打ち切り。
+my_logs/nohup_ds4_20221117-20221118.log
+
+
+考察
+---------
+
+1) validの不具合は解消したにもかかわらず事象は改善しなかった
+
+2) ds4で1000 iterationsを超えてもap値が0であった。依然としてやはり、学習データのバリエーションが足りないのかも
+
+3) 誤検出は依然として多い
+
+4) tinyのままである。tinyじゃないと上手くいくかもしれない。
+
+このことから、2)と4)が怪しいポイントかと考えた。2)の学習バリエーションの増加は単純に結構な労力なので、とりあえず、4)を試してみる。
+
+確かに、過去、素直にネットからDLしてきたtinyでdetectすると、かなり、サンプルのbirdやdogでさえ誤検出していた(tinyじゃないほうは誤検出せず)ので、4)はすこし、期待できる。ただし、学習時間は長くなるので、そこは覚悟
+
+
+ds5の計画と実行
+===================
+
+ds5を作り、本家の以下にしたがい、cfgを修正した。
+あとのobj.dataやtrain/validの画像データそのものはds4を継承している。
+
+https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects
+
+11/19 8:50より学習をスタート
 
 
 データ処理の手順の半自動化
