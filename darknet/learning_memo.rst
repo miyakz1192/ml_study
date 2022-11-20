@@ -653,7 +653,29 @@ ds5を作り、本家の以下にしたがい、cfgを修正した。
 
 https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects
 
-11/19 8:50より学習をスタート
+11/19 8:50より学習をスタート。しかし、しばらくして50~70iterations位で以下のエラー。::
+
+ (next mAP calculation at 1000 iterations) ESC]2;70/6000: loss=-nan hours left=717.2^G
+  70: -nan, -nan avg loss, 0.000000 rate, 332.178208 seconds, 4480 images, 717.177361 hours left
+  realloc(): invalid old size
+
+https://github.com/pjreddie/darknet/issues/1460
+のページを見ると、configurationがおかしいのでダブルチェックせよとのこと。
+さらに、以下のＵＲＬを見ろとのこと。
+https://github.com/AlexeyAB/darknet
+本家やん。
+
+本家のページを見るとネットワークサイズが416 x 416に対して使っているcfgが合っていなかったので、それに合わせた。
+それ以外はもう一回見返してみたけど特に変な所はなさそう。といっても、もともと指定していたネットワークサイズは32で割り切れるので問題ないと
+おもったけど、。。::
+
+  #width=608 #もともと
+  #height=608 #もともと
+  width=416
+  height=416
+
+11/21 00:08にds5を再スタート
+
 
 
 データ処理の手順の半自動化
