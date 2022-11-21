@@ -674,9 +674,174 @@ https://github.com/AlexeyAB/darknet
   width=416
   height=416
 
-11/21 00:08にds5を再スタート
+11/21 00:08にds5を再スタート。
+しかし、同じようなエラーでコケる。ネットワークサイズを416にしてもダメだし。
+
+考察
+------
+
+1) tinyじゃないやつでやるとreallocでエラー。cfg間の差分は以下。本家の説明を見ていると以下の説明。
+　Create file yolo-obj.cfg with the same content as in yolov4-custom.cfg (or copy yolov4-custom.cfg to yolo-obj.cfg) and:
+  yolov4-custom.cfgをそのままcopyしてきて使っているのだけどなぁ。
+
+　そして、実際の差分は以下。説明通りに設定したが、batchが異なるので、これを戻してみたらどうか。つまり、max_batchesを500500に、stepsを400000,450000に戻す。tinyの方で上手くiterationsは回っていたのでその値を逆に非tinyに輸入したらどうかという発想。::
+
+ miyakz@lily2:~/git_repos/darknet$ diff -u cfg/yolov4-custom.cfg  ds5/yolov4-custom.cfg 
+ --- cfg/yolov4-custom.cfg	2022-11-09 13:22:42.407693069 +0000
+ +++ ds5/yolov4-custom.cfg	2022-11-20 15:02:56.971210638 +0000
+ @@ -5,8 +5,10 @@
+  # Training
+  batch=64
+  subdivisions=16
+ -width=608
+ -height=608
+ +#width=608
+ +#height=608
+ +width=416
+ +height=416
+  channels=3
+  momentum=0.949
+  decay=0.0005
+ @@ -17,9 +19,9 @@
+  
+  learning_rate=0.001
+  burn_in=1000
+ -max_batches = 500500
+ +max_batches = 6000
+  policy=steps
+ -steps=400000,450000
+ +steps=4800,5400
+  scales=.1,.1
+  
+  #cutmix=1
+ @@ -960,14 +962,14 @@
+  size=1
+  stride=1
+  pad=1
+ -filters=255
+ +filters=18
+  activation=linear
+  
+  
+  [yolo]
+  mask = 0,1,2
+  anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+ -classes=80
+ +classes=1
+  num=9
+  jitter=.3
+  ignore_thresh = .7
+ @@ -1048,14 +1050,14 @@
+  size=1
+  stride=1
+  pad=1
+ -filters=255
+ +filters=18
+  activation=linear
+  
+  
+  [yolo]
+  mask = 3,4,5
+  anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+ -classes=80
+ +classes=1
+  num=9
+  jitter=.3
+  ignore_thresh = .7
+ @@ -1136,14 +1138,14 @@
+  size=1
+  stride=1
+  pad=1
+ -filters=255
+ +filters=18
+  activation=linear
+  
+  
+  [yolo]
+  mask = 6,7,8
+  anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+ -classes=80
+ +classes=1
+  num=9
+  jitter=.3
+  ignore_thresh = .7
+ miyakz@lily2:~/git_repos/darknet$ 
+
+2) 1)が上手く行かない場合、yolo3にしてみる？ 
+
+3) ds4で1000 iterationsを超えてもap値が0であった。依然としてやはり、学習データのバリエーションが足りないのかも
 
 
+3)以降については、そもそも、reallocでコケる問題を先に解消する必要あり優先度は低め。
+
+
+ds5の再実行
+===========
+
+まずはmax_batchesを500500に、stepsを400000,450000に戻すという、tinyで採用されていたパラメータ値を使ってやってみることにする。
+11/21 23:00ころからスタート一時間くらいで同じエラー
+
+再考察
+--------
+
+yolov4-custom.cfgじゃなくて、yolov4.cfgをベースにしてみては、、、と思う。
+これで再度リトライしたい。
+
+11/22 00:30位にスタート::
+  miyakz@lily2:~/git_repos/darknet$ ./train_ds.sh ds5 big_not_customcfg
+
+
+
+ちょっと分析っぽい
+---------------------
+
+cfgファイルのwidth,heightを変えてもログの以下の表示は変わらない。::
+
+  Resizing, random_coef = 1.40 
+  
+   608 x 608 
+  Loaded: 0.500794 seconds
+
+一体、この608 x 608はどこから来ているのだろう。多分ソース上、ここ。::
+
+  detector.c:234:                printf("\n %d x %d  (batch = %d) \n", dim_w, dim_h, net.batch);
+  detector.c:237:                printf("\n %d x %d \n", dim_w, dim_h);
+  detector.c:331:                printf("Resizing to initial size: %d x %d ", init_w, init_h);
+
+detector.cによると以下。一発デバッグprintfでも仕込んでやれば何かわかるだろうな。::
+
+    194     while (get_current_iteration(net) < net.max_batches) {
+    195         if (l.random && count++ % 10 == 0) {
+    196             float rand_coef = 1.4;
+    197             if (l.random != 1.0) rand_coef = l.random;
+    198             printf("Resizing, random_coef = %.2f \n", rand_coef);
+    199             float random_val = rand_scale(rand_coef);    // *x or /x
+    200             int dim_w = roundl(random_val*init_w / net.resize_step + 1) * net.resize_step;
+    201             int dim_h = roundl(random_val*init_h / net.resize_step + 1) * net.resize_step;
+
+多分、dim_wとdim_hを決めている式の右辺の乗算の左側が常に1に近くなり、かつ、net.resize_stepが608であれば、いつも、dim_wとdim_hは608になるのだろう。多分、そのような値にconfigurationされているように思える。resize_stepを決めているのは以下。configにresize_stepがなければデフォルトで32が入る気がする。::
+
+  src/parser.c:1234:    net->resize_step = option_find_float_quiet(options, "resize_step", 32);
+
+configではresize_stepは設定していないので、::
+
+  miyakz@lily2:~/git_repos/darknet$ grep -rn resize_step ds5/*
+  miyakz@lily2:~/git_repos/darknet$ 
+
+dim_wとdim_hが608になるためには、右辺の乗算の左側が19になる必要がある。ところで、init_wはnet.wだ。::
+
+  src/detector.c:120:    const int init_w = net.w;
+
+んで、net.wを設定している箇所は::
+
+  src/parser.c:1209:    net->w = option_find_int_quiet(options, "width",0);
+  src/network.c:580:    net->w = w;
+
+であるが、int resize_network関数でいろいろとwとhが更新されており、最終的にはoutput層のwとhになるらしい。
+なので、ここで表示されているwとhは純粋にinputではないのかもしれない。たしかに、inputは変更後の416 x 416になっているため問題ないんだろうなぁ::
+
+   layer   filters  size/strd(dil)      input                output
+   0 conv     32       3 x 3/ 1    416 x 416 x   3 ->  416 x 416 x  32 0.299 BF
 
 データ処理の手順の半自動化
 ==============================
