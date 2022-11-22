@@ -1078,20 +1078,23 @@ https://github.com/AlexeyAB/darknet#how-to-improve-object-detection
 
 ・小さい画像だとストライドを調整したほうがよい。16 x 16が案内されているが、今回のcloseは 32 x  32。ストライドを調整しても良いのではないか。
 
+6) yolov3 tinyで試した時、subdivisionsを16に設定。yolov4-tiny-customのほうが1となっており、数値に差が有り、気になる。
+
 んー。かなりわからない状態になってきた。いままで学習がエラーせずに進むのはyolov4のtiny customしかない状況。他の代替手段が無いため、5)を試してみるしか無い状況。ds5の再実行を試してダメなら、4)をやってみよう。4)がもし上手く行くのならば、4)の成功をベースに白血球のデータをcloseに差し替えていけば学習が上手く行くはず（こっちのほうが近道か？）
+
 
 ds5再実行
 ==========
 
 ネットワークのレゾリューションを上げる。832 x 832にする
 
-ストライドの調整。すでに1,2の値になっている
-miyakz@lily2:~/git_repos/darknet$ grep stride= ds5/yolov4-tiny-custom.cfg  | sort | uniq
-stride=1
-stride=2
-miyakz@lily2:~/git_repos/darknet$ 
-
-layersの値はcfgファイル上負の値になっており、よくわからなく、調整を避けた。
+ストライドの調整。すでに1,2の値になっている::
+  miyakz@lily2:~/git_repos/darknet$ grep stride= ds5/yolov4-tiny-custom.cfg  | sort | uniq
+  stride=1
+  stride=2
+  miyakz@lily2:~/git_repos/darknet$ 
+  
+layersの値はcfgファイル上、負の値に設定されており、よくわからなく、調整を避けた。
 
 11/23 02:35より学習開始。
 
