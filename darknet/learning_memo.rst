@@ -781,8 +781,8 @@ ds5の再実行
 まずはmax_batchesを500500に、stepsを400000,450000に戻すという、tinyで採用されていたパラメータ値を使ってやってみることにする。
 11/21 23:00ころからスタート一時間くらいで同じエラー
 
-再考察
---------
+再考察&実行
+-------------
 
 yolov4-custom.cfgじゃなくて、yolov4.cfgをベースにしてみては、、、と思う。
 これで再度リトライしたい。
@@ -790,6 +790,349 @@ yolov4-custom.cfgじゃなくて、yolov4.cfgをベースにしてみては、�
 11/22 00:30位にスタート::
   miyakz@lily2:~/git_repos/darknet$ ./train_ds.sh ds5 big_not_customcfg
 
+結果は同じエラー
+
+再考察
+-------
+
+といいうことで、yolov4でやることは尽くした感じがある。
+yolov2でやってみる
+https://github.com/AlexeyAB/darknet/tree/47c7af1cea5bbdedf1184963355e6418cb8b1b4f#how-to-train-to-detect-your-custom-objects
+
+ds5へのyolov2の組み込み(作業ログ)
+======================================
+
+以下のように実施。::
+
+  miyakz@lily2:~/git_repos/darknet$ cp cfg/yolov2-voc.cfg ds5/
+  miyakz@lily2:~/git_repos/darknet$ 
+
+  miyakz@lily2:~/git_repos/darknet$ diff -u cfg/yolov2-voc.cfg ds5/yolov2-voc.cfg 
+  --- cfg/yolov2-voc.cfg	2022-11-09 13:22:42.407693069 +0000
+  +++ ds5/yolov2-voc.cfg	2022-11-22 10:16:00.284410102 +0000
+  @@ -1,7 +1,7 @@
+   [net]
+   # Testing
+  -batch=1
+  -subdivisions=1
+  +batch=64
+  +subdivisions=8
+   # Training
+   # batch=64
+   # subdivisions=8
+  @@ -234,14 +234,14 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=125
+  +filters=30
+   activation=linear
+   
+   
+   [region]
+   anchors =  1.3221, 1.73145, 3.19275, 4.00944, 5.05587, 8.09892, 9.47112, 4.84053, 11.2364, 10.0071
+   bias_match=1
+  -classes=20
+  +classes=1
+   coords=4
+   num=5
+   softmax=1
+  miyakz@lily2:~/git_repos/darknet$ 
+  
+  
+  miyakz@lily2:~/git_repos/darknet$ cat train_ds_yolov2.sh 
+  
+  ddir=$1
+  kind=$2
+  
+  if [ $# -ne 2 ]; then
+  	echo "ERROR: data dir name is req, tiny or big, or big_not_customcfg"
+  	exit 1
+  fi
+  
+  
+  set -x
+  
+  if [ ${kind} == "tiny" ];then
+    echo "ERROR"
+  elif [  ${kind} == "big" ];then
+    echo "big"
+    nohup ./darknet detector train ${ddir}/obj.data ${ddir}/yolov2-voc.cfg ${ddir}/darknet19_448.conv.23 -dont_show -mjpeg_port 8090 -map &
+  elif [  ${kind} == "big_not_customcfg" ];then
+    echo "ERROR"
+  else
+    echo "ERROR: no such option"
+    exit 2
+  fi
+  
+  
+  
+  miyakz@lily2:~/git_repos/darknet$ 
+  
+
+11/22 19:20よりスタート結果、avgがnanになる結果はかわらず。
+my_logs/nohup_ds5_yolov2.log。
+同じようなパラメータでtinyだったらnanにならなかったことを思い出す。
+精度は期待できないが、yolov2のtinyでやってみる。::
+  
+  miyakz@lily2:~/git_repos/darknet$ diff -u cfg/yolov2-tiny-voc.cfg ds5/yolov2-tiny-voc.cfg 
+  --- cfg/yolov2-tiny-voc.cfg	2022-11-09 13:22:42.407693069 +0000
+  +++ ds5/yolov2-tiny-voc.cfg	2022-11-22 13:15:07.529157461 +0000
+  @@ -1,7 +1,7 @@
+   [net]
+   # Testing
+  -batch=1
+  -subdivisions=1
+  +batch=64
+  +subdivisions=8
+   # Training
+   # batch=64
+   # subdivisions=2
+  @@ -115,13 +115,13 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=125
+  +filters=30
+   activation=linear
+   
+   [region]
+   anchors = 1.08,1.19,  3.42,4.41,  6.63,11.38,  9.42,5.11,  16.62,10.52
+   bias_match=1
+  -classes=20
+  +classes=1
+   coords=4
+   num=5
+   softmax=1
+  miyakz@lily2:~/git_repos/darknet$ 
+
+やっぱりだめ。yolov2でもだめだった。::
+
+   69: -nan, -nan avg loss, 0.000100 rate, 39.914736 seconds, 4416 images, 421.417908 hours left
+   known client: 4, sent = 181230, must be sent outlen = 181230
+    MJPEG-stream sent. 
+   Loaded: 0.000022 seconds
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 3
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 4
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 3
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 2
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 3
+   Region Avg IOU: -nan, Class: -nan, Obj: -nan, No Obj: -nan, Avg Recall: -nan,  count: 0
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 2
+   Region Avg IOU: 0.000000, Class: nan, Obj: -nan, No Obj: -nan, Avg Recall: 0.000000,  count: 1
+   
+    (next mAP calculation at 100 iterations) ESC]2;70/40200: loss=-nan hours left=421.7^G
+    70: -nan, -nan avg loss, 0.000100 rate, 39.945466 seconds, 4480 images, 421.653232 hours left
+   known client: 4, sent = 181242, must be sent outlen = 181242
+   realloc(): invalid old size
+
+結果はmy_logs/nohup_ds5_invalid_realloc_yolov2.log。
+ds5でyolov4のtinyをちょっと試しにやってみる。。。::
+
+  cp ds4/yolov4-tiny-custom.cfg  ds5/
+  cp ds4/yolov4-tiny.conv.29 ds5/
+
+iterationsが88まで行っているがreallocエラーでコケることは無い。
+
+
+考察
+-----
+
+まず、ds4のtinyの時の考察を再掲する。tinyの時のゲーム画像のcloseを認識するものの誤検出が激しく、
+
+1) validの不具合は解消したにもかかわらず事象は改善しなかった
+
+2) ds4で1000 iterationsを超えてもap値が0であった。依然としてやはり、学習データのバリエーションが足りないのかも
+
+3) 誤検出は依然として多い
+
+4) tinyのままである。tinyじゃないと上手くいくかもしれない。
+
+ということで、まず、tiny以外でやろうと思って、ds5にてtiny以外を試したのだが、
+
+  yolov4のnon tinyでreallocエラー
+
+  yolov2のnon tinyでreallocエラー
+
+ということで、なぜか、tiny以外だとダメである。なぜだろう。
+
+5) ここでふと思ったのだが、まず、確実に成功する方法でカスタムデータの学習を試してみることで自身をつけるのはどうだろう。
+
+https://www.koi.mashykom.com/pytorch_3.html
+
+6) あと、本家のページにも以下のヒントがある。これを活かしてみるのはどうだろう
+
+https://github.com/AlexeyAB/darknet#how-to-improve-object-detection
+
+・ネットワークのレゾリューションを上げる416 x 416から上に
+
+・-show_imgsを付けて試してみる。  
+
+・1 classごとに2000枚はほしいとのこと(現在のcloseは200枚程度)
+
+・小さい画像だとストライドを調整したほうがよい。16 x 16が案内されているが、今回のcloseは 32 x  32。ストライドを調整しても良いのではないか。
+
+7) yolov3のtinyで学習を進めてみる(記事tinyが怪しい点?いや、怪しくない点？を参照)
+
+以下記事(tinyが怪しい点?いや、怪しくない点？)によって、yolov3のtinyなら大丈夫そうというコトがわかった。
+かつ、今までの実績ベースでいくと、tinyなら学習がエラーせずに進む様子(1勝1敗、、、yolov4 tiny win , yolov2 tiny lose)。
+かつ、いままで試したのはyolo2/4であって、yolov3は試してない。
+ということで、ds5の再学習をyolov3のtinyで実施してみると、改善が期待できるのでは？
+ためしにやってみる。
+
+ds5の再学習
+==============
+
+yolov3のtinyで学習をすすめる。::
+
+  miyakz@lily2:~/git_repos/darknet$ diff -u cfg/yolov3-tiny.cfg ds5/yolov3-tiny.cfg 
+  --- cfg/yolov3-tiny.cfg	2022-11-09 13:22:42.407693069 +0000
+  +++ ds5/yolov3-tiny.cfg	2022-11-22 17:09:46.956371282 +0000
+  @@ -1,7 +1,7 @@
+   [net]
+   # Testing
+  -batch=1
+  -subdivisions=1
+  +batch=64
+  +subdivisions=16
+   # Training
+   # batch=64
+   # subdivisions=2
+  @@ -124,7 +124,7 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=255
+  +filters=18
+   activation=linear
+   
+   
+  @@ -132,7 +132,7 @@
+   [yolo]
+   mask = 3,4,5
+   anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319
+  -classes=80
+  +classes=1
+   num=6
+   jitter=.3
+   ignore_thresh = .7
+  @@ -168,13 +168,13 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=255
+  +filters=18
+   activation=linear
+   
+   [yolo]
+   mask = 0,1,2
+   anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319
+  -classes=80
+  +classes=1
+   num=6
+   jitter=.3
+   ignore_thresh = .7
+  miyakz@lily2:~/git_repos/darknet$ 
+
+11/23 02:16より開始
+
+早々とlose。reallocのいつものエラー::
+
+  miyakz@lily2:~/git_repos/darknet$  grep avg nohup.out 
+  avg_outputs = 324846 
+  avg_outputs = 324846 
+   1: 556.005249, 556.005249 avg loss, 0.000000 rate, 40.257556 seconds, 64 images, -1.000000 hours left
+   2: 555.796509, 555.984375 avg loss, 0.000000 rate, 40.023119 seconds, 128 images, 5602.339534 hours left
+   3: 556.233582, 556.009277 avg loss, 0.000000 rate, 40.137928 seconds, 192 images, 5601.925925 hours left
+   4: 555.829895, 555.991333 avg loss, 0.000000 rate, 40.028085 seconds, 256 images, 5601.675859 hours left
+   5: 556.016968, 555.993896 avg loss, 0.000000 rate, 40.083506 seconds, 320 images, 5601.275543 hours left
+   6: 556.002319, 555.994751 avg loss, 0.000000 rate, 40.055308 seconds, 384 images, 5600.956159 hours left
+   7: 555.905579, 555.985840 avg loss, 0.000000 rate, 40.106618 seconds, 448 images, 5600.600656 hours left
+   8: -nan, -nan avg loss, 0.000000 rate, 40.373377 seconds, 512 images, 5600.319865 hours left
+   9: -nan, -nan avg loss, 0.000000 rate, 41.320219 seconds, 576 images, 5600.412450 hours left
+  miyakz@lily2:~/git_repos/darknet$ 
+
+
+考察
+-------
+  
+1) ds4で1000 iterationsを超えてもap値が0であった。依然としてやはり、学習データのバリエーションが足りないのかも
+
+2) 誤検出は依然として多い(closeを検出するが誤検出多し)
+
+3) tinyのままである。tinyじゃないと上手くいくかもしれない。
+
+4) ここでふと思ったのだが、まず、確実に成功する方法でカスタムデータの学習を試してみることで自身をつけるのはどうだろう。
+
+https://www.koi.mashykom.com/pytorch_3.html
+
+5) あと、本家のページにも以下のヒントがある。これを活かしてみるのはどうだろう
+
+https://github.com/AlexeyAB/darknet#how-to-improve-object-detection
+
+・ネットワークのレゾリューションを上げる416 x 416から上に
+
+・-show_imgsを付けて試してみる。  
+
+・1 classごとに2000枚はほしいとのこと(現在のcloseは200枚程度)
+
+・小さい画像だとストライドを調整したほうがよい。16 x 16が案内されているが、今回のcloseは 32 x  32。ストライドを調整しても良いのではないか。
+
+んー。かなりわからない状態になってきた。いままで学習がエラーせずに進むのはyolov4のtiny customしかない状況。他の代替手段が無いため、5)を試してみるしか無い状況。ds5の再実行を試してダメなら、4)をやってみよう。4)がもし上手く行くのならば、4)の成功をベースに白血球のデータをcloseに差し替えていけば学習が上手く行くはず（こっちのほうが近道か？）
+
+ds5再実行
+==========
+
+ネットワークのレゾリューションを上げる。832 x 832にする
+
+ストライドの調整。すでに1,2の値になっている
+miyakz@lily2:~/git_repos/darknet$ grep stride= ds5/yolov4-tiny-custom.cfg  | sort | uniq
+stride=1
+stride=2
+miyakz@lily2:~/git_repos/darknet$ 
+
+layersの値はcfgファイル上負の値になっており、よくわからなく、調整を避けた。
+
+11/23 02:35より学習開始。
+
+
+tinyが怪しい点?いや、怪しくない点？
+---------------------------------------
+
+以下で実行してみたら、ありえない結果になり、かつ、コマンドが復帰しない!::
+
+  miyakz@lily2:~/git_repos/darknet$ ./darknet detect cfg/yolov4-tiny.cfg org_weight/yolov4-tiny.conv.29 data/eagle.jpg 
+   GPU isn't used 
+  mini_batch = 1, batch = 1, time_steps = 1, train = 0 
+  nms_kind: greedynms (1), beta = 0.600000 
+  nms_kind: greedynms (1), beta = 0.600000 
+  
+   seen 64, trained: 0 K-images (0 Kilo-batches_64) 
+   Detection layer: 30 - type = 28 
+   Detection layer: 37 - type = 28 
+  data/eagle.jpg: Predicted in 154.500000 milli-seconds.
+  bus: 100%
+  fire hydrant: 100%
+  bench: 100%
+  cat: 100%
+  horse: 100%
+  sheep: 100%
+  cow: 100%
+  elephant: 100%
+  bear: 100%
+  zebra: 100%
+
+ここで中断.
+しかし、以下のURLの通り実施してみると、tinyの精度はちょっと悪いけど、ちゃんと検出する。yolov4のtinyが悪い？？？
+
+https://pjreddie.com/darknet/yolo/
+
+こんな感じ。::
+
+  wget https://pjreddie.com/media/files/yolov3-tiny.weights
+  ./darknet detect cfg/yolov3-tiny.cfg org_weight/yolov3-tiny.weights data/dog.jpg
+  ./darknet detect cfg/yolov3-tiny.cfg org_weight/yolov3-tiny.weights data/eagle.jpg 
+  
 
 
 ちょっと分析っぽい
