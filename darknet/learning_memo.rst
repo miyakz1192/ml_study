@@ -1236,6 +1236,93 @@ cfgは以下。::
 11/23 11:26より学習開始。
 これで上手く行けば良いが、上手く行かない場合なにか根本的な所でミスがあると思っている。 
 
+結果はＮＧ。やっぱり、根本的な所がへんだなぁ。::
+
+ (next mAP calculation at 1000 iterations) ESC]2;30/6000: loss=-nan hours left=939.4^G
+  30: -nan, -nan avg loss, 0.000000 rate, 328.933514 seconds, 1920 images, 939.408316 hours left
+  realloc(): invalid old size
+
+cfgファイルなどは改めて内容を確認したが問題は特になさそう。
+
+
+考察(blood)
+-----------------
+
+web上の記事では(cfgファイルの内容は不明だが)すでに成功しているだろう事例だけに、今までとかなり事情が異なる。
+reallocエラーの前にnanが出現することが特徴的であり、nanがreallocエラーを引き起こしていると想定して、
+nanに関するissueが乗っている記事を探したら結構あった。
+
+https://github.com/pjreddie/darknet/issues/622
+　→　内容はよくわからない。結局ここに投稿している皆さんも解決方法が良くわからないそうだ。
+
+https://github.com/pjreddie/darknet/issues/690
+　→　上記よりも少し詳しいヒントが乗っている。
+
+カウント= 0の場合、Nan値が返され、YOLOレイヤーに画像が渡されなくなります
+だから、その時はYoloレイヤーのマスクを変更するだけです（私の理解）
+私の場合、yolov3-tiny.config から最後のレイヤーのマスクを変更するだけです。
+マスク = 0、1、2
+に
+マスク = 1、2、3
+（これは私がランダムに行うもので、私にとってはうまくいきます）
+ありがとう
+　→　理由はよくわからないけど効くこともあるらしい。ランダムに行うというのが気になるが。。
+
+
+My issue was solved when I changed my anchors according to my dataset by using
+darknet.exe detector calc_anchors data/obj.data -num_of_clusters <number_of _anchors(9 is used for original yolo)> -width <your_width> -height <your_height>
+　→　全く良くわからなんい。
+
+
+
+@ztilottama : I used batch=64 and subdivisions=16, but it can be specific to your task. With single image SGD was diverging.
+
+
+https://teratail.com/questions/303594
+default config(batch=1, subdivisions=1) is just for test, uncomment Training batch=64 subdivisions=8 to train. correct me if i'm wrong
+
+
+https://teratail.com/questions/242322
+以下の変更を行うことで解決できました。
+
+cfgファイルの設定を変更
+learning_rate = 0.001　→　0.0001
+
+学習率が変化する設定を最適に調整しないと、学習が発散するようです。
+
+
+上記URLからポイントされている記事
+https://touch-sp.hatenablog.com/entry/2017/09/21/182622
+
+https://stackoverflow.com/questions/60158549/getting-nan-during-darknet-training-what-am-i-doing-wrong
+幾つか記事はあるが、learning_rateの減少設定がある。
+
+https://weekendproject9.hatenablog.com/entry/2018/04/30/205622
+上手く行かなければ、batch,subdivisionsを1,1にするのが案内されている。
+また、「＊学習過程で "-nan" が出てくるが学習における82,94,108のどれかで数字が出ていれば学習が進んでいる」
+
+https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects
+nanはavgフィールドに現れると学習が悪い方向に進んでいるが、そうでなければ特に問題はないということ。上記ＵＲＬも同じ記事がある。
+
+
+【まとめ】
+nanを避けるための設定
+
+1) yoloレイヤのマスクを変更する(0,1,2 → 1,2,3) 
+
+2) アンカーの設定を変更する(よくわからないが)
+
+3) batchやsubdivisionsを調整する(タスクによるとのことだが)
+
+4) learning_rateの変更(0.001 to 0.0001)
+
+5) batchとsubdivisionsを1に変更する。
+
+
+まず、5でやってみている。
+だけど、別記事によれば、逆で64,8に設定するべきとも読める。
+けどもまぁ、試しに1,1でやってみる。
+
 
 
 tinyが怪しい点?いや、怪しくない点？
