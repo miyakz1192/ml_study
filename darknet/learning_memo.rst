@@ -1098,6 +1098,145 @@ layersの値はcfgファイル上、負の値に設定されており、よく�
 
 11/23 02:35より学習開始。
 
+結果と考察
+---------------
+
+結果はＮＧ。::
+
+   layer   filters  size/strd(dil)      input                output
+   0 conv     32       3 x 3/ 2    832 x 832 x   3 ->  416 x 416 x  32 0.299 BF
+   (snip)
+    (next mAP calculation at 1000 iterations) ESC]2;285/500200: loss=-nan hours left=14394.2^G
+    285: -nan, -nan avg loss, 0.000017 rate, 102.712098 seconds, 18240 images, 14394.152970 hours left
+
+
+結果はmy_logs/nohup_ds5_nan.log
+
+再掲
+
+【効果があるかもしれない施策】
+
+1) ds4で1000 iterationsを超えてもap値が0であった。依然としてやはり、学習データのバリエーションが足りないのかも
+
+2) 誤検出は依然として多い(closeを検出するが誤検出多し)
+
+4) ここでふと思ったのだが、まず、確実に成功する方法でカスタムデータの学習を試してみることで自身をつけるのはどうだろう。
+
+https://www.koi.mashykom.com/pytorch_3.html
+
+6) yolov3 tinyで試した時、subdivisionsを16に設定。yolov4-tiny-customのほうが1となっており、数値に差が有り、気になる。
+
+
+【すでに試して効果がなかった施策】
+
+3) tinyのままである。tinyじゃないと上手くいくかもしれない。 →　これは意味なし。
+
+5) あと、本家のページにも以下のヒントがある。これを活かしてみるのはどうだろう
+https://github.com/AlexeyAB/darknet#how-to-improve-object-detection
+やったことネットワークのレゾリューションを832 x 832、subdivisionsは1のまま
+
+
+ここでやっぱり残りの（多分、本当にラストの）施策は4)だと思う。
+
+Mashykomの実行
+===================
+
+https://www.koi.mashykom.com/pytorch_3.html
+のサイトのYOLOv4-Darknetモデルの学習の所を参照して試す。
+
+まず、https://github.com/mashyko/darknet
+にcfgまで置かれているので、レポジトリごとcloneしてくる。
+と思ったら、不幸なことに存在しない。。。。
+
+cfgファイルの作り方はここが参考になるかも。
+https://qiita.com/taichinakabeppu/items/e4d38f19c4041b9f4fc3
+
+darknet/cfg/yolov4-custom.cfgを持ってきて書き換えると書いてある。
+cfgは以下。::
+
+  miyakz@lily2:~/git_repos/darknet$ diff -u cfg/yolov4-custom.cfg  blood/yolov4-custom.cfg 
+  --- cfg/yolov4-custom.cfg	2022-11-09 13:22:42.407693069 +0000
+  +++ blood/yolov4-custom.cfg	2022-11-23 02:22:58.453319909 +0000
+  @@ -5,8 +5,8 @@
+   # Training
+   batch=64
+   subdivisions=16
+  -width=608
+  -height=608
+  +width=416
+  +height=416
+   channels=3
+   momentum=0.949
+   decay=0.0005
+  @@ -17,9 +17,9 @@
+   
+   learning_rate=0.001
+   burn_in=1000
+  -max_batches = 500500
+  +max_batches = 6000
+   policy=steps
+  -steps=400000,450000
+  +steps=4800,5400
+   scales=.1,.1
+   
+   #cutmix=1
+  @@ -960,14 +960,14 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=255
+  +filters=24
+   activation=linear
+   
+   
+   [yolo]
+   mask = 0,1,2
+   anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+  -classes=80
+  +classes=3
+   num=9
+   jitter=.3
+   ignore_thresh = .7
+  @@ -1048,14 +1048,14 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=255
+  +filters=24
+   activation=linear
+   
+   
+   [yolo]
+   mask = 3,4,5
+   anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+  -classes=80
+  +classes=3
+   num=9
+   jitter=.3
+   ignore_thresh = .7
+  @@ -1136,14 +1136,14 @@
+   size=1
+   stride=1
+   pad=1
+  -filters=255
+  +filters=24
+   activation=linear
+   
+   
+   [yolo]
+   mask = 6,7,8
+   anchors = 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401
+  -classes=80
+  +classes=3
+   num=9
+   jitter=.3
+   ignore_thresh = .7
+  miyakz@lily2:~/git_repos/darknet$ 
+ 
+11/23 11:26より学習開始。
+これで上手く行けば良いが、上手く行かない場合なにか根本的な所でミスがあると思っている。 
+
+
 
 tinyが怪しい点?いや、怪しくない点？
 ---------------------------------------
