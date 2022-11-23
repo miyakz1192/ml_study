@@ -1304,6 +1304,17 @@ https://weekendproject9.hatenablog.com/entry/2018/04/30/205622
 https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects
 nanはavgフィールドに現れると学習が悪い方向に進んでいるが、そうでなければ特に問題はないということ。上記ＵＲＬも同じ記事がある。
 
+https://github.com/pjreddie/darknet/issues/1460
+reallocエラーに関する記事がそもそも少ないのだが、やはり、nanが原因の様子。
+
+他の記事だと
+https://teratail.com/questions/113758
+reallocに渡すポインタはあらかじめmalloc/calloc/reallocされたものか、さもなくばNULLじゃないといけないんですよー。
+https://linuxjm.osdn.jp/html/LDP_man-pages/man3/malloc.3.html
+
+ということで、そもそものプログラミングの問題があるのかもしれない。だが、avgでnanが出ている事自体、学習が進んでいない（悪い状態）なので、
+これを解決することがやはり、再優先課題かと。
+
 
 【まとめ】
 nanを避けるための設定
