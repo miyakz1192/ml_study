@@ -1384,7 +1384,9 @@ batchとsubdivisionsを1にしてみると、どうか？
 
 A) batch,subdivisions=1　→　NG(my_logs/nohup_blood_realloc_error3.log)
 B) learning_rate=0.0001 and A) →  NG(my_logs/nohup_blood_realloc_error4.log)
-C) batch,subdivisions=64,16 and learning_rate=0.0001 →　?
+C) batch,subdivisions=64,16 and learning_rate=0.0001 →　NG my_logs/nohup_blood_realloc_error5.log
+D) network size = 160(width,height) ※  416 x 416から変更 and learning_rate=0.0001 →　 NG(my_logs/nohup_blood_realloc_error6.log)
+E) 最後のyoloレイヤのマスクを6,7,8から7,8,9に変更
 
 learning_rateをもっと低くしてみるのも良いかも？？？あとはネットワークサイズの縮小やmask変更？くらいかしか残されていない。
 あと、これで上手く行かなかったら、yolov4 tinyでもう一回学習が回るか（回った結果、誤検出が多い重みが生成されてしまうが)？
