@@ -1386,15 +1386,30 @@ A) batch,subdivisions=1　→　NG(my_logs/nohup_blood_realloc_error3.log)
 B) learning_rate=0.0001 and A) →  NG(my_logs/nohup_blood_realloc_error4.log)
 C) batch,subdivisions=64,16 and learning_rate=0.0001 →　NG my_logs/nohup_blood_realloc_error5.log
 D) network size = 160(width,height) ※  416 x 416から変更 and learning_rate=0.0001 →　 NG(my_logs/nohup_blood_realloc_error6.log)
-E) 最後のyoloレイヤのマスクを6,7,8から7,8,9に変更
+E) 最後のyoloレイヤのマスクを6,7,8から7,8,9に変更 NG(error7)
 
 learning_rateをもっと低くしてみるのも良いかも？？？あとはネットワークサイズの縮小やmask変更？くらいかしか残されていない。
 あと、これで上手く行かなかったら、yolov4 tinyでもう一回学習が回るか（回った結果、誤検出が多い重みが生成されてしまうが)？
 
 あと、お試しのサーバ再起動？？14日間連続稼働しているのも何か悪影響合ったりして(本当か？なんだそれ？？)
 
+んー。一応、ds4 tinyで上手く言った時も本当に大丈夫なのかな、、、と思ってds4 tinyを学習開始
 
+→　上手く言っている(my_logs/nohup_ds4.log)
 
+考察
+------
+
+もはや、yolov4 tinyしか学習が上手く行かないので、脇目を振らず、ds4を中心にyolov4 tinyで
+学習を改善するしか無いのではないか。
+
+11/24 20:43学習開始
+
+ds6の計画
+=============
+
+ds4からcopyしてds6を作る。違う所はtrain.txtが200に対してvalidが400程度。
+この数値を逆転する。すなわち、train.txtとvalid.txtを入れ替えて学習をトライしてみる。
 
 
 tinyが怪しい点?いや、怪しくない点？
