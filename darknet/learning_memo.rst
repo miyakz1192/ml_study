@@ -1440,6 +1440,19 @@ yolov4 tiny以外では60iterations未満でnanになっていたが、現在293
 
 11/26 1:49現在、539 iterations回っており、avgも順調に下がっているので良い感じかもしれない。
 
+結局約5000 iterations位回ったが途中でavgがnanになり、"mean average precision (mAP@0.50) = 0.281002, or 28.10 % "
+を最高値として叩きだしたが学習が途中で頓挫した結果になった(my_logs/nohup_blood_mAP_0_28.txt)。
+
+考察(blood by yolov4 tiny)
+-----------------------------
+
+1) やはり、学習が回るのはyolov4 tinyくらしかないのでは
+
+2) yolov4 tinyでも約2000 iterationsくらいまでは好調だった。つまり、2000 iterations位で良いmAP値が出せればＯＫ
+   (ds3は1000 iterationsくらいでmAPが80%位だった)
+
+4) bloodが416 x 416なので、この画像がベストサイズなのではないか。
+
 ds7の計画
 ===========
 
@@ -1460,6 +1473,19 @@ tranデータの水増しを優先しすぎて、あきらかにcloseの形を�
 
 一応、画像はできた(990画像)。どうせなので画像を生成したあとの定形作業は自動化したい。
 (blood by yolov4 tinyの学習進行状態などをみつつ。。。）
+
+ds7はds6ベースにして学習をすすめる。以下の2 STEPに分けてやって見る
+
+STEP1) ゲームの画像なしでdata_augmentationしたデータをtrainとvalidに分けて学習する。
+　　　 もし、ここで良い結果が得られたら、yolov4 tinyで学習がすすめることが出来そうだ
+       (mAP値を80%目標)とする
+
+
+STEP2) もし、上記目標を達成できたら、今度は集めたゲーム画像を416 x 416に分けてvalidデータに追加する。
+
+STEP1が上手く行かなかったら諦めて他のフレームワークを試してみることにする。
+
+STEP1を11/27 23:52開始
 
 tinyが怪しい点?いや、怪しくない点？
 ---------------------------------------
@@ -1557,18 +1583,105 @@ dim_wとdim_hが608になるためには、右辺の乗算の左側が19にな�
 やはり、バリエーションを増やすための作業の省力化をしたいものだ。
 以下の手順で今の所実施している。
 
-A)data_augmentationで自動生成したclose画像の処理
------------------------------------------------------
+A)data_augmentationで自動生成したclose画像の処理とその自動化(./get_augmentation_data.sh)
+---------------------------------------------------------------------------------------------
 
 1) data_augmentationのサーバでjupyterを使ってtrain/valid画像を生成。こちらは画像を見ながらいろいろと試行錯誤しながら実施している(data_augmentationするコードの修正と仮生成したtrain/valid画像をいろいろと試行錯誤。このプロセスで生成された仮生成画像は、あくまで仮)
 
 2) train/valid画像がよさ気だと思ったら、本生成 
 
 3) この場でannotationのtxtも自動生成してしまう
+   (data_augmentationした416 x 416の画像のアノテーションの位置は固定。)
 
 4) 本生成したtrain/valid画像(annotationのtxtも込)をtar.gzで固める
 
 なお、tar.gzのファイル名はdata_augmentation_close_img.tar.gz
+
+A-1) data_augmentationした416 x 416画像のアノテーションtxtをつくる
+-----------------------------------------------------------------------
+
+滅多にやる必要はない。data_augmentationした画像の全体画素数を変更したら、
+アノテーションtxtを再度生成する必要がある。
+
+data_augmentationサーバからimglabelingサーバに画像を1つだけ送って、
+imglabelingサーバでアノテーションを作る必要がある。以下、その手順。
+
+まず、data_augmentationサーバにある416 x 416画像(座標0,0に32 x 32のclose画像が配置)のうち、任意の１つを
+imagelabelingサーバに転送する。::
+
+  scp 88.jpg a@192.168.122.237:/home/a/close_data/
+
+次にimagelabelingサーバでimagelabelingツールを実行する::
+
+  a@imglabeling:~/labelImg$ ./run.sh 
+
+続けて得られた88.xml(VOC形式)。参考までに全体を乗せておく::
+
+  @imglabeling:~/close_data$ cat 88.xml 
+  <annotation>
+  	<folder>close_data</folder>
+  	<filename>88.jpg</filename>
+  	<path>/home/a/close_data/88.jpg</path>
+  	<source>
+  		<database>Unknown</database>
+  	</source>
+  	<size>
+  		<width>416</width>
+  		<height>416</height>
+  		<depth>1</depth>
+  	</size>
+  	<segmented>0</segmented>
+  	<object>
+  		<name>close</name>
+  		<pose>Unspecified</pose>
+  		<truncated>1</truncated>
+  		<difficult>0</difficult>
+  		<bndbox>
+  			<xmin>1</xmin>
+  			<ymin>1</ymin>
+  			<xmax>32</xmax>
+  			<ymax>32</ymax>
+  		</bndbox>
+  	</object>
+  </annotation>
+  a@imglabeling:~/close_data$ 
+
+
+ツールのrectangle選択ではymaxが31になったが、後にvimで32に編集した.
+txtに変換する::
+
+  python3 /home/a/rtod/Tools/prepare.py -s ./ -yf 25 -cpy "./ds7/"
+
+生成された88.txtを見てみる::
+
+  a@imglabeling:~/close_data$ cat 88.txt 
+  0 0.039663 0.039663 0.074519 0.074519
+  a@imglabeling:~/close_data$ 
+
+最初のエントリはラベルなので0(close)でＯＫ。
+2番め：annotation対象の中心座標(x)を画像のwidthで割ったもの
+3番め：annotation対象の中心座標(y)を画像のheightで割ったもの
+4番目: annotation画像のwidthを画像のwidthで割ったもの
+5番目: annotation画像のheightを画像のheightで割ったもの
+
+計算結果は大体合っている。::
+
+  a@imglabeling:~/close_data$ ruby -e "puts 16.0/416.0"
+  0.038461538461538464
+  a@imglabeling:~/close_data$ ruby -e "puts 16.0/416.0"
+  0.038461538461538464
+  a@imglabeling:~/close_data$ ruby -e "puts 32.0/416.0"
+  0.07692307692307693
+  a@imglabeling:~/close_data$ ruby -e "puts 32.0/416.0"
+  0.07692307692307693
+  a@imglabeling:~/close_data$ 
+
+新しいデータで、data_augmentationサーバのcreate_annotation_txt.shの
+データの箇所を変更する(template変数)。
+
+A)の作業を再度実施する。具体的にはlily2で以下のシェルを実行するのみ。::
+  ./get_augmentation_data.sh
+
 
 B)キャプチャしたゲーム画像に関する処理
 -----------------------------------------------------
