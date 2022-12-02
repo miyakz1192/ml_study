@@ -1,5 +1,6 @@
 # ライブラリの読み込み
 import os
+import sys
 from PIL import Image
 
 import torch
@@ -187,10 +188,10 @@ std = (0.5, 0.5, 0.5)
 transform = ImageTransform(resize, mean, std)
 img_transformed = transform(img, 'train')
 
-plt.imshow(img)
-plt.show()
+#plt.imshow(img)
+#plt.show()
 
-plt.imshow(img_transformed.numpy().transpose((1, 2, 0)))
+#plt.imshow(img_transformed.numpy().transpose((1, 2, 0)))
 #plt.show()
 plt.savefig("test.jpg")
 
@@ -380,14 +381,18 @@ net = Net()
 print(net)
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.01)
+#optimizer = optim.SGD(net.parameters(), lr=0.01)
+#以下に取り替えてみる
+optimizer = optim.Adam(net.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 
 # エポック数
-num_epochs = 30
+#num_epochs = 30
+num_epochs = 300
 
 for epoch in range(num_epochs):
     print('Epoch {}/{}'.format(epoch+1, num_epochs))
     print('-------------')
+    sys.stdout.flush()
     
     for phase in ['train', 'valid']:
         
@@ -442,6 +447,7 @@ for epoch in range(num_epochs):
         epoch_acc = epoch_corrects.double() / len(dataloaders_dict[phase].dataset)
 
         print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+        sys.stdout.flush()
 
 # 予測用のダミーデータ
 x = torch.randn([1, 3, 300, 300])
