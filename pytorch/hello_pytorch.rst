@@ -11,6 +11,7 @@ pytorchの練習
 2) https://tips-memo.com/pytorch-dataset
 3) https://venoda.hatenablog.com/entry/2020/10/11/221117#31-%E3%83%87%E3%83%BC%E3%82%BF%E6%BA%96%E5%82%99
 4) https://rightcode.co.jp/blog/information-technology/torch-optim-optimizer-compare-and-verify-update-process-and-performance-of-optimization-methods
+5) http://cedro3.com/ai/pytorch-ssd-bccd/
 
 X) https://github.com/miyakz1192/ml_study.git
 
@@ -46,6 +47,29 @@ X)に2)のコードをコピペしたものがあるfirst.py。
   train Loss: 1.5886 Acc: 0.2845
   valid Loss: 1.5903 Acc: 0.3051
   a@pytorch:~/ml_study/pytorch/color$ 
+
+次に(5)のSSDというやつ(大成功)
+===============================
+
+ここに乗っているレポジトリを参考にcloseデータを学習させたところ、非常に良い結果が
+得られた。数時間の学習でゲーム画像内のcloseデータもちゃんと認識できた！
+(darknetで悩んでいた数週間は一体何だったのだという位にあっさり行った)
+
+ここのコードは信頼できるので、このコードをちゃんとforkしてclose検出(その他ゲームに現れる記号）を
+認識させる学習フレームワーク基盤として発展させてい行きたい。
+
+とりあえず、どのへんの座標を検出出来たのか出力できないので、
+その機能を付けたい。
+
+この辺の一連の話をjupyter notebookでビジュアルに振り返られるようにしておいておきたい。
+
+なお、ゲーム画像を認識させる場合は、ゲーム画像は1080 x 2080位と大きいので、closeを含む画像を
+416 x 416として抜き出してそれをjpgで保存して、入力させてやる必要がある。
+
+しかし、検出時間は1秒位なので、416 x 416に分割されたとしても数回の作業で済むので
+全く問題ない。
+
+
   
 
 
