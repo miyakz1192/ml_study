@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.utils import array_to_img
 import os
+import sys
 
 file = sys.argv[1]
 
