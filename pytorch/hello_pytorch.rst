@@ -69,10 +69,147 @@ X)に2)のコードをコピペしたものがあるfirst.py。
 しかし、検出時間は1秒位なので、416 x 416に分割されたとしても数回の作業で済むので
 全く問題ない。
 
+考察
+-----
 
-  
+ゲーム画像についてはあまり成績は良くない。
+概ね、1080 x 2400のため認識率が良くないと思われる::
+
+  a@pytorch:~/close_ssd$ python3 first.py ./data/Screenshot_2022-11-11-00-31-27-10_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+赤ちゃんの画像。closeは正しく認識されない。::
+
+  a@pytorch:~/close_ssd$ python3 first.py ./data/Screenshot_2022-11-11-00-32-36-53_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+井上尚弥の画像も同じう。
+
+次に認識が失敗した画像を400 x 400くらいにすると見事認識した。
+井上尚弥、赤ちゃんのほうも同じく。
+
+したがって、ゲーム画像を認識させる場合には 400 x 400位の画像にしたほうが良いというコトがわかった。
+
+トライ
+=======
+
+撮りためたゲーム画像をサンプルとして試してみる。
+その前に手動で400 x 400を切り抜くのは大変なので、それを自動化するプログラムを組むことにする。
 
 
+NGリスト
+-----------
 
 
+以下のファイルが正しくcloseが認識されない
+file==> data/lu_Screenshot_2022-10-21-00-23-35-12_56bd83b73c18fa95b476c6c0f96c6836.jpg
+ベーシックなcloseだが、全体が白のバックに薄い灰色の●　の中に白いバッテンが書かれているもの。
+全く検出しない。
+
+hit enter file==> data/lu_Screenshot_2022-11-11-00-41-06-93_56bd83b73c18fa95b476c6c0f96c6836.jpg
+本当のcloseがそもそも含まれない画像。しかし、漢字をcloseとご検出してしまっている。
+漢字が多いと確かに、closeのバッテン(クロス)が含まれるので、ここを誤検出している。
+漢字は厄介だ。。。
+
+hit enter file==> data/person.jpg
+こちらは偶然混じった、darknetのサンプルファイル。理由はよくわからんけど、長靴の所とかを誤検出してしまっている。
+
+hit enter file==> data/ru_Screenshot_2022-11-11-00-37-18-58_56bd83b73c18fa95b476c6c0f96c6836.jpg
+本当のcloseがそもそも含まれない画像。宣伝のゲームの中にcloseと誤検出されるものが混じってしまっている。
+
+hit enter file==> data/ru_Screenshot_2022-11-11-00-41-06-93_56bd83b73c18fa95b476c6c0f96c6836.jpg
+本当のcloseが含まれる画像。カタカナのジを誤検出。また、本当のcloseは認識せず。全体背景が白をベースとした薄い青に、その上に薄いグレーに白い文字でバッテン。薄いグレーの中に横棒も混じってしまっているこのパターンは認識が難しい様子。
+
+hit enter file==> data/lu_Screenshot_2022-12-05-20-23-33-26_56bd83b73c18fa95b476c6c0f96c6836.jpg
+ゲーム画像を誤検出。見た感じバッテンの要素は全然なさそうだが、、、
+
+hit enter file==> data/lu_Screenshot_2022-12-07-16-09-56-86_56bd83b73c18fa95b476c6c0f96c6836.jpg
+漢字を誤検出
+
+hit enter file==> data/lu_Screenshot_2022-12-08-18-32-13-36_56bd83b73c18fa95b476c6c0f96c6836.jpg
+誤検出。ただし、0.6と低い数値だが。
+
+hit enter file==> data/lu_Screenshot_2022-12-08-18-33-56-71_56bd83b73c18fa95b476c6c0f96c6836.jpg
+漢字を誤検出。白色のバッテンを検出しないのはエライのだが、「残」を0.95とかなり高い確率で誤検出。
+
+hit enter file==> data/lu_Screenshot_2022-12-08-23-17-20-54_56bd83b73c18fa95b476c6c0f96c6836.jpg
+漢字「者」を0.84で高い誤検出
+
+hit enter file==> data/lu_Screenshot_2022-12-09-00-20-49-28_56bd83b73c18fa95b476c6c0f96c6836.jpg
+ゲーム中の顔？を0.95位で高い誤検出
+
+hit enter file==> data/lu_Screenshot_2022-12-10-10-17-54-32_56bd83b73c18fa95b476c6c0f96c6836.jpg
+なんと、">>"を0.95で誤検出。(これはこれで良い結果ではあるのだが。。。。？微妙！＿！＿！？)~
+
+hit enter file==> data/ru_Screenshot_2022-12-05-20-05-24-88_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-18-31-56-89_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-18-27-03-36_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-18-32-03-84_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-18-32-13-36_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-23-19-13-78_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-09-00-20-49-28_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-12-08-23-17-20-54_56bd83b73c18fa95b476c6c0f96c6836.jpg
+本当のcloseが含まれる画像。本当のcloseは認識せず。全体背景が白やほかの色（例：黄色など）をベースとした薄い青(あるいは灰色)に、その上に薄いグレーに白い文字でバッテン。薄いグレーの中に別の背景も混じっている画像(漢字も含む)。
+
+hit enter file==> data/ru_Screenshot_2022-12-08-18-33-56-71_56bd83b73c18fa95b476c6c0f96c6836.jpg
+充電の電池記号を0.86で誤検出。なんで。。。
+
+hit enter file==> data/ru_Screenshot_2022-12-10-10-17-54-32_56bd83b73c18fa95b476c6c0f96c6836.jpg
+closeは無いのだが、他の麻雀牌とか背景っぽいものをご認識してしまっている0.7位
+
+グレー
+-----------
+
+hit enter file==> data/lu_Screenshot_2022-11-11-00-34-25-48_56bd83b73c18fa95b476c6c0f96c6836.jpg
+本物のclose以外にも誤検出されているものがあるが、本当のcloseが1.00で検出されており、これはこれで正しい。
+hit enter file==> data/lu_Screenshot_2022-11-11-00-39-39-59_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+
+そもそもテストターゲットとしてcloseが400 x 400の中になかった
+----------------------------------------------------------------
+
+以下はcloseが存在しなかったがＮＧまたはＯＫの片割れの画像のため問題なし。
+
+file==> data/lu_Screenshot_2022-10-21-00-21-51-38_56bd83b73c18fa95b476c6c0f96c6836.jpg
+file==> data/lu_Screenshot_2022-10-21-00-21-51-38_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/lu_Screenshot_2022-10-21-00-25-42-95_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/lu_Screenshot_2022-11-11-00-32-36-53_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+hit enter file==> data/ru_Screenshot_2022-10-21-00-23-35-12_56bd83b73c18fa95b476c6c0f96c6836.jpg
+→　上記でNGとして検出されている画像の右上画像のため問題なし。
+hit enter file==> data/ru_Screenshot_2022-11-11-00-31-27-10_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-11-11-00-34-25-48_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-11-11-00-35-14-37_56bd83b73c18fa95b476c6c0f96c6836.jpg
+hit enter file==> data/ru_Screenshot_2022-11-11-00-35-55-52_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+hit enter file==> data/ru_Screenshot_2022-11-11-00-47-07-72_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+注目
+------
+
+hit enter file==> data/ru_Screenshot_2022-12-06-10-22-56-12_56bd83b73c18fa95b476c6c0f96c6836.jpg
+別の背景が写り込んでいるのだが、closeを0.96で高く認識出来ている。
+背景が写り込んでいるが、その上に濃いめの黒で塗られており（透けている）、その上に白地の×。
+これは学習したclose記号そのもののパターン。
+
+
+hit enter file==> data/ru_Screenshot_2022-12-07-16-09-56-86_56bd83b73c18fa95b476c6c0f96c6836.jpg
+背景や漢字も混ざっているが、正しくcloseを認識0.98。やはり、すこし濃い目の黒がベースにある（背景や漢字が透けているが）。
+
+hit enter file==> data/ru_Screenshot_2022-12-08-18-26-54-47_56bd83b73c18fa95b476c6c0f96c6836.jpg
+0.64で認識。やはり、すこし濃い目の黒がベースにある
+
+hit enter file==> data/ru_Screenshot_2022-12-08-23-30-31-53_56bd83b73c18fa95b476c6c0f96c6836.jpg
+すごく小さいサイズのバッテンも（背景が黒で白のcloseであれば）、検出(0.94)できた。
+
+考察
+=====
+
+現状、以下の学習が足りていない
+
+1) 全体白地で、薄いグレーの上に白のclose（薄いグレーは透けている）
+2) 様々な背景の上に、薄いグレーのベースがあり、その上に白のclose（薄いグレーは透けている）
+3) ">>"を同じように学習させる
+
+人間がcloseを認識出来ないようなものはゲーム画像としては出してこない。
+
+1)のパターンのゲームの画像をvalidデータとしてannotationしたうえで学習させる必要があると思われる
 
