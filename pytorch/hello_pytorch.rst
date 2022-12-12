@@ -213,3 +213,39 @@ hit enter file==> data/ru_Screenshot_2022-12-08-23-30-31-53_56bd83b73c18fa95b476
 
 1)のパターンのゲームの画像をvalidデータとしてannotationしたうえで学習させる必要があると思われる
 
+トライ2
+==========
+
+NGリストの以下の8つのファイルを新たにtrain/valに分けて訓練開始::
+
+  hit enter file==> data/ru_Screenshot_2022-12-05-20-05-24-88_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-18-31-56-89_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-18-27-03-36_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-18-32-03-84_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-18-32-13-36_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-23-19-13-78_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-09-00-20-49-28_56bd83b73c18fa95b476c6c0f96c6836.jpg
+  hit enter file==> data/ru_Screenshot_2022-12-08-23-17-20-54_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+訓練コマンド::
+  
+  a@pytorch:~/close_ssd$ python3 learn.py 
+
+トライ2の結果と考察
+=========================
+
+上記トライ２のデータのうち、以下の１つだけが、0.72だった。他は誤検出か検出せず。::
+
+  a@pytorch:~/close_ssd$ python3 first.py VOCdevkit/BCCD/JPEGImages/ru_Screenshot_2022-12-05-20-05-24-88_56bd83b73c18fa95b476c6c0f96c6836.jpg
+
+少しだけ進歩したと言える。以前のweights/good_backup/20221212/close_weight.pthでは確かに0.72もスコアが出ない(というか検出せず)。
+
+この結果から、訓練データを増やしたり工夫すれば良さそうであることがわかる
+
+
+
+
+
+
+
+
