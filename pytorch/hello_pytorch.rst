@@ -242,8 +242,87 @@ NGリストの以下の8つのファイルを新たにtrain/valに分けて訓�
 
 この結果から、訓練データを増やしたり工夫すれば良さそうであることがわかる
 
+トライ3準備
+===========
+
+gaaのmemo.rstから引き継いだ以下の課題にトライ。
+
+1.文字を変にcloseと認識してしまう。
+
+　i.逆に大量の文字を学習させれば良い。これでcloseとの区別がつくようになるはず。
+2.○　の中にバッテンのタイプを認識できない
+
+　i.このタイプのcloseを学習させる必要あり
+3.背景が透けているバッテンが認識されない。
+
+　i.data augmentationで学習データを大量に作る必要がありか。
+
+まず、課題の1から。作戦としては、いろいろとありそう。検討したものをとりあえず列挙していくが。
+
+1. フリーのフォントをトレーニング画像として学習する。
+
+   1. ただしこの方法ではフォントデータの中身を調べる必要があるのでめんどくさそう
+
+2. matplotlibでテキスト描画してsavefigでjpegとしてsaveしてやる(32 x 32画像くらいか?)
+
+   1. matplotlib周りはいじってきたのでなんとかなるか？
+
+【重要な気づき】
+そろそろ、pytorch_ssdの仕組みの詳細を知る必要があるかもしれない。
+今closeのannotationのxmlファイルには種別がWBCだったり、closeだったりマチマチになっており、
+本当にこれ、正しく認識出来るのかがよくわからなくなっているため。
 
 
+ubuntuへのipaフォントのインストール
+---------------------------------------
+
+このＵＲＬが非常にありがたいか。
+
+https://ubuntu.perlzemi.com/blog/20200906132441.html
+
+以下の感じ。::
+
+  sudo apt install -y fonts-ipafont
+  fontのキャッシュを更新しましょう。
+  
+  fc-cache -fv
+  フォントがインストールされたか確認しましょう。
+  
+  fc-list | grep -i ipa
+
+けど結局japanize motplotlibを使って上手く表示はできるようになった。
+
+
+japanize-matplotlib
+-----------------------
+
+https://pypi.org/project/japanize-matplotlib/
+
+以下。::
+
+  pip install japanize-matplotlib
+  
+  import matplotlib.pyplot as plt
+  import japanize_matplotlib
+  
+  plt.plot([1, 2, 3, 4])
+  plt.xlabel('簡単なグラフ')
+  plt.show()
+
+青空文庫からデータを取得して文字列一覧を試しに生成してみる
+------------------------------------------------------------
+
+このURLがありがたい。
+
+https://qiita.com/y_itoh/items/fa04c1e2f3df2e807d61
+
+コードはそのまま使わせてもらった。
+
+トライ3
+=========
+
+1000文字の日本語データを用意して学習を開始。
+  
 
 
 
